@@ -322,9 +322,17 @@
 
   <div class="shell">
     <section class="card">
-      <div class="card-head">Live Action Feed</div>
-      <div class="media">
-        <img src="/skeleton_feed" alt="Processed action detection feed">
+      <div class="card-head" style="display: flex; justify-content: space-between; align-items: center;">
+        <span>Live Action Feed</span>
+        <button id="cameraOnBtn" onclick="toggleCamera()" style="height: 28px; font-size: 11px; width: auto; padding: 0 12px; background: rgba(56, 189, 248, 0.15); color: var(--accent); border-color: rgba(56, 189, 248, 0.3);">START CAMERA</button>
+      </div>
+      <div class="media" style="position: relative;">
+        <video id="cameraVideo" autoplay playsinline muted style="display: none;"></video>
+        <canvas id="cameraCanvas" style="display: none;"></canvas>
+        <img id="skeletonFeed" src="" alt="Processed action detection feed" style="display: none;">
+        <div id="cameraPlaceholder" style="width: 100%; aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; border-radius: 16px; border: 1px dashed var(--line); color: var(--muted); background: rgba(0,0,0,0.4);">
+          Camera off
+        </div>
       </div>
     </section>
 
@@ -400,18 +408,88 @@
       document.getElementById('prob2')
     ];
 
+    const skeletonFeed = document.getElementById('skeletonFeed');
+    const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+    const cameraVideo = document.getElementById('cameraVideo');
+    const cameraCanvas = document.getElementById('cameraCanvas');
+    const cameraOnBtn = document.getElementById('cameraOnBtn');
+
+    let cameraActive = false;
+    let browserStream = null;
+    let frameInterval = null;
+    let sending = false;
+
+    async function toggleCamera() {
+      cameraActive = !cameraActive;
+      if (cameraActive) {
+        try {
+          browserStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+          cameraVideo.srcObject = browserStream;
+          cameraVideo.style.display = 'block';
+          cameraPlaceholder.style.display = 'none';
+          skeletonFeed.style.display = 'block';
+          cameraOnBtn.textContent = 'STOP CAMERA';
+          cameraOnBtn.style.color = 'var(--danger)';
+          cameraOnBtn.style.borderColor = 'rgba(251, 113, 133, 0.3)';
+          cameraOnBtn.style.background = 'rgba(251, 113, 133, 0.1)';
+          frameInterval = setInterval(sendFrameToServer, 200);
+        } catch (err) {
+          alert('Camera access denied: ' + err.message);
+          cameraActive = false;
+        }
+      } else {
+        if (frameInterval) { clearInterval(frameInterval); frameInterval = null; }
+        if (browserStream) { browserStream.getTracks().forEach(t => t.stop()); browserStream = null; }
+        cameraVideo.style.display = 'none';
+        cameraPlaceholder.style.display = 'flex';
+        skeletonFeed.style.display = 'none';
+        cameraOnBtn.textContent = 'START CAMERA';
+        cameraOnBtn.style.color = 'var(--accent)';
+        cameraOnBtn.style.borderColor = 'rgba(56, 189, 248, 0.3)';
+        cameraOnBtn.style.background = 'rgba(56, 189, 248, 0.15)';
+      }
+    }
+
+    async function sendFrameToServer() {
+      if (!cameraActive || sending) return;
+      sending = true;
+      try {
+        cameraCanvas.width = cameraVideo.videoWidth || 640;
+        cameraCanvas.height = cameraVideo.videoHeight || 480;
+        const ctx = cameraCanvas.getContext('2d');
+        ctx.drawImage(cameraVideo, 0, 0);
+        const frameData = cameraCanvas.toDataURL('image/jpeg', 0.7);
+
+        const res = await fetch('/api/process-frame', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ frame: frameData })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          actionDisplay.textContent = data.character || '-';
+          sentenceDisplay.textContent = data.sentence || ' ';
+          
+          if (data.skeleton) {
+            skeletonFeed.src = 'data:image/jpeg;base64,' + data.skeleton;
+          }
+
+          const probs = data.action_probabilities || [];
+          probEls.forEach((el, index) => {
+            const value = probs[index] || 0;
+            el.textContent = value.toFixed(2);
+          });
+        }
+      } catch (err) { }
+      sending = false;
+    }
+
     async function pollState() {
+      if (cameraActive) return; // If camera is active, sendFrameToServer handles UI updates
       try {
         const res = await fetch('/state');
         const data = await res.json();
-        actionDisplay.textContent = data.character || '-';
-        sentenceDisplay.textContent = data.sentence || ' ';
         analysisText.textContent = data.analysis_result || 'Capture a frame to analyze visible sign or text and speak it aloud.';
-        const probs = data.action_probabilities || [];
-        probEls.forEach((el, index) => {
-          const value = probs[index] || 0;
-          el.textContent = value.toFixed(2);
-        });
       } catch (err) {
       }
     }

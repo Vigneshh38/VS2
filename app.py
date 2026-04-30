@@ -66,7 +66,6 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TF warnings
 
 # ddd already initialized above in the try/except block
 hd = HandDetector(maxHands=1)
-hd2 = HandDetector(maxHands=1)
 mp_holistic = mp.solutions.holistic
 mp_drawing = mp.solutions.drawing_utils
 mp_face_mesh = mp.solutions.face_mesh
@@ -78,11 +77,11 @@ current_camera_idx = 0
 model = load_model('cnn8grps_rad1_model.h5')
 print("Loaded model from disk")
 action_model = None
-if not CLOUD_MODE and os.path.exists(ACTION_MODEL_PATH):
+if os.path.exists(ACTION_MODEL_PATH):
     action_model = load_model(ACTION_MODEL_PATH)
     print("Loaded action model")
 else:
-    print("Skipping action model (cloud mode or not found)")
+    print("Skipping action model (not found)")
 action_labels = np.array(['hello', 'thanks', 'iloveyou'])
 action_colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245)]
 
@@ -1039,7 +1038,7 @@ def video_loop():
                         white = np.ones((400, 400, 3), dtype=np.uint8) * 255
 
                         if image is not None and image.size > 0:
-                            handz = normalize_hands_result(hd2.findHands(image, draw=False, flipType=True))
+                            handz = normalize_hands_result(hd.findHands(image, draw=False, flipType=True))
                             ccc += 1
                             if handz:
                                 hand2 = handz[0]
@@ -1416,11 +1415,73 @@ def process_browser_frame():
         with frame_lock:
             latest_camera_frame = cv2image.copy()
 
-        skeleton_b64 = None
+        if active_mode == "action":
+            # Action Detection Mode
+            skeleton_b64 = None
+            if 'mp_holistic' not in globals() or 'mp_drawing' not in globals():
+                return jsonify({'ok': False, 'error': 'Action detection not fully initialized'})
 
-        # Run hand detection (same as video_loop alphabet mode)
-        hands = normalize_hands_result(hd.findHands(cv2image, draw=False, flipType=True))
-        cv2image_copy = np.array(cv2image)
+            with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+                processed_image, results = mediapipe_detection(cv2image.copy(), holistic)
+                draw_action_landmarks(processed_image, results)
+                keypoints = extract_action_keypoints(results)
+                action_sequence.append(keypoints)
+                
+                # Ensure sequence is capped
+                while len(action_sequence) > ACTION_SEQUENCE_LENGTH:
+                    action_sequence.pop(0)
+
+                if action_model is None:
+                    action_current_symbol = "Model missing"
+                    action_probabilities = [0.0 for _ in action_labels]
+                elif len(action_sequence) == ACTION_SEQUENCE_LENGTH:
+                    res = action_model.predict(np.expand_dims(action_sequence, axis=0), verbose=0)[0]
+                    action_probabilities = res.tolist()
+                    predicted_index = int(np.argmax(res))
+                    action_current_symbol = action_labels[predicted_index]
+                    action_predictions.append(predicted_index)
+                    
+                    while len(action_predictions) > ACTION_STABILITY_WINDOW:
+                        action_predictions.pop(0)
+
+                    stable_predictions = action_predictions[-ACTION_STABILITY_WINDOW:]
+                    if (
+                        len(stable_predictions) == ACTION_STABILITY_WINDOW
+                        and len(set(stable_predictions)) == 1
+                        and res[predicted_index] > ACTION_THRESHOLD
+                    ):
+                        predicted_label = action_labels[predicted_index]
+                        if not action_sentence or predicted_label != action_sentence[-1]:
+                            action_sentence.append(predicted_label)
+
+                    if len(action_sentence) > 5:
+                        action_sentence.pop(0)
+
+                    processed_image = action_prob_viz(res, action_labels, processed_image, action_colors)
+
+                cv2.rectangle(processed_image, (0, 0), (640, 40), (245, 117, 16), -1)
+                cv2.putText(processed_image, ' '.join(action_sentence), (3, 30),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                with frame_lock:
+                    latest_skeleton_frame = processed_image.copy()
+
+                _, skel_jpg = cv2.imencode('.jpg', processed_image, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                skeleton_b64 = base64.b64encode(skel_jpg.tobytes()).decode('utf-8')
+
+            return jsonify({
+                'ok': True,
+                'character': str(action_current_symbol) if action_current_symbol else '-',
+                'sentence': ' '.join(action_sentence),
+                'action_probabilities': action_probabilities,
+                'skeleton': skeleton_b64
+            })
+            
+        else:
+            # Alphabet Detection Mode
+            skeleton_b64 = None
+            hands = normalize_hands_result(hd.findHands(cv2image, draw=False, flipType=True))
+            cv2image_copy = np.array(cv2image)
 
         if hands:
             hand = hands[0]
@@ -1433,7 +1494,7 @@ def process_browser_frame():
             white = np.ones((400, 400, 3), dtype=np.uint8) * 255
 
             if image is not None and image.size > 0:
-                handz = normalize_hands_result(hd2.findHands(image, draw=False, flipType=True))
+                handz = normalize_hands_result(hd.findHands(image, draw=False, flipType=True))
                 ccc += 1
                 if handz:
                     hand2 = handz[0]
