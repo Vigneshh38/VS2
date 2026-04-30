@@ -1,0 +1,342 @@
+
+<h2 class="sr-only">SignSpeak Studio — premium professional UI</h2>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.root{font-family:var(--font-sans);background:var(--color-background-tertiary);border-radius:var(--border-radius-lg);overflow:hidden;display:flex;flex-direction:column;width:100%}
+
+.nav{height:50px;background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-ico{width:30px;height:30px;background:#111;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand-ico svg{width:16px;height:16px}
+.brand-name{font-size:14px;font-weight:500;color:var(--color-text-primary);letter-spacing:-.3px}
+.brand-name span{color:var(--color-text-secondary);font-weight:400}
+.vsep{width:0.5px;height:18px;background:var(--color-border-tertiary);margin:0 4px}
+.ntag{font-size:10px;color:var(--color-text-secondary);background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:4px;padding:2px 8px;letter-spacing:.3px}
+.nright{margin-left:auto;display:flex;align-items:center;gap:8px}
+.livepill{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:500;background:#eaf3de;color:#27500a;border:0.5px solid #c0dd97}
+.ldot{width:6px;height:6px;border-radius:50%;background:#639922;animation:pu 2s ease-in-out infinite}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.3}}
+.nbtn{height:30px;padding:0 12px;border-radius:7px;border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-secondary);font-size:11px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;transition:background .15s;font-family:var(--font-sans)}
+.nbtn:hover{background:var(--color-background-secondary)}
+.nbtn svg{width:11px;height:11px;opacity:.55}
+.nbtn.danger{color:#a32d2d;border-color:rgba(226,75,74,.2)}
+.nbtn.danger:hover{background:#fcebeb}
+
+.body{display:grid;grid-template-columns:minmax(0,1fr) 260px}
+.left{padding:16px;display:flex;flex-direction:column;gap:14px;border-right:0.5px solid var(--color-border-tertiary)}
+.sec-label{font-size:10px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.8px;margin-bottom:7px;text-transform:uppercase}
+
+.cam-skeleton-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+
+.cam-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.cam-header{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.cam-header-left{display:flex;align-items:center;gap:7px}
+.cam-hico{width:20px;height:20px;border-radius:5px;background:var(--color-background-secondary);display:flex;align-items:center;justify-content:center}
+.cam-hico svg{width:11px;height:11px;color:var(--color-text-secondary)}
+.cam-htitle{font-size:11px;font-weight:500;color:var(--color-text-primary)}
+.cam-hsub{font-size:9px;color:var(--color-text-secondary)}
+.cam-status{display:flex;align-items:center;gap:4px;font-size:9px;color:#3b6d11;background:#eaf3de;padding:2px 7px;border-radius:10px;border:0.5px solid #c0dd97}
+.csdot{width:5px;height:5px;border-radius:50%;background:#639922}
+.camview{background:#0a0a0a;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;position:relative}
+.cam-ph{display:flex;flex-direction:column;align-items:center;gap:6px}
+.cam-ph svg{width:20px;height:20px;opacity:.15}
+.cam-ph p{font-size:9px;color:rgba(255,255,255,.2);letter-spacing:.3px}
+.badge-tl{position:absolute;top:7px;left:7px;display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.6);border:0.5px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 6px;font-size:8px;color:rgba(255,255,255,.45)}
+.badge-tr{position:absolute;top:7px;right:7px;display:flex;align-items:center;gap:3px;background:rgba(0,0,0,.65);border:0.5px solid rgba(99,153,34,.3);border-radius:4px;padding:2px 6px;font-size:8px;color:#97c459}
+.badge-br{position:absolute;bottom:7px;right:7px;font-size:8px;color:rgba(255,255,255,.25);background:rgba(0,0,0,.4);padding:2px 6px;border-radius:3px}
+.cam-footer{padding:7px 12px;display:flex;align-items:center;justify-content:space-between}
+.cam-footer-stat{font-size:9px;color:var(--color-text-secondary)}
+.cam-footer-stat span{color:var(--color-text-primary);font-weight:500}
+
+.skel-char-col{display:flex;flex-direction:column;gap:12px}
+.panel{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.ph{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.ph-ico{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ph-ico svg{width:11px;height:11px}
+.ph-ico.green{background:#eaf3de;color:#3b6d11}
+.ph-ico.purple{background:#eeedfe;color:#3c3489}
+.ph-title{font-size:11px;font-weight:500;color:var(--color-text-primary)}
+.ph-sub{font-size:9px;color:var(--color-text-secondary)}
+.skelview{height:100px;display:flex;align-items:center;justify-content:center;background:var(--color-background-tertiary)}
+.skelview svg{width:40px;height:54px;opacity:.2}
+.charview{padding:14px 12px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.charbig{font-size:54px;font-weight:500;font-family:var(--font-mono);color:var(--color-text-primary);line-height:1}
+.confrow{width:100%;display:flex;align-items:center;gap:7px}
+.conflbl{font-size:9px;color:var(--color-text-secondary);white-space:nowrap}
+.confbar{flex:1;height:3px;background:var(--color-border-tertiary);border-radius:2px;overflow:hidden}
+.confill{height:100%;background:#639922;width:87%;border-radius:2px}
+.confnum{font-size:9px;font-weight:500;color:#3b6d11;white-space:nowrap}
+
+.right{display:flex;flex-direction:column;background:var(--color-background-primary)}
+.rs{border-bottom:0.5px solid var(--color-border-tertiary)}
+.rh{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.rh-left{display:flex;align-items:center;gap:7px}
+.rh-ico{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--color-background-secondary)}
+.rh-ico svg{width:11px;height:11px;color:var(--color-text-secondary)}
+.rh-title{font-size:11px;font-weight:500;color:var(--color-text-primary)}
+.rh-badge{font-size:9px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:2px 7px;border-radius:10px;border:0.5px solid var(--color-border-tertiary)}
+
+.out-body{padding:10px 14px}
+.out-text{min-height:46px;background:var(--color-background-tertiary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px 10px;font-family:var(--font-mono);font-size:12px;color:var(--color-text-primary);line-height:1.6;word-break:break-word}
+.cursor{display:inline-block;width:1.5px;height:11px;background:var(--color-text-primary);opacity:.7;vertical-align:text-bottom;margin-left:1px;animation:blink 1s step-end infinite}
+@keyframes blink{0%,100%{opacity:.7}50%{opacity:0}}
+
+.sug-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:10px 14px}
+.sug{display:flex;align-items:center;justify-content:space-between;padding:6px 9px;background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);font-family:var(--font-mono);font-size:10px;color:var(--color-text-secondary);cursor:pointer;transition:all .15s}
+.sug:hover{background:var(--color-background-primary);border-color:var(--color-border-primary);color:var(--color-text-primary)}
+.sug-key{width:15px;height:15px;border-radius:3px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--color-text-secondary)}
+
+.act-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px 14px}
+.act{display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:transparent;color:var(--color-text-primary);font-size:11px;font-weight:500;cursor:pointer;transition:background .15s;font-family:var(--font-sans)}
+.act:hover{background:var(--color-background-secondary)}
+.act svg{width:11px;height:11px;flex-shrink:0}
+.act.primary{background:#111;color:#f1efe8;border-color:#111}
+.act.primary:hover{background:#2c2c2a}
+.act.red{color:#a32d2d;border-color:rgba(226,75,74,.2);grid-column:span 2}
+.act.red:hover{background:#fcebeb}
+
+.gest-list{display:flex;flex-direction:column;padding:4px 14px 8px}
+.gest-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.gest-row:last-child{border-bottom:none}
+.gico{width:22px;height:22px;border-radius:6px;background:var(--color-background-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gico svg{width:11px;height:11px;color:var(--color-text-secondary)}
+.gtxt{font-size:10px;color:var(--color-text-secondary);line-height:1.4}
+.gtxt strong{font-weight:500;color:var(--color-text-primary)}
+
+.ai-body{padding:10px 14px}
+.ai-box{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:8px 10px;font-size:10px;color:var(--color-text-secondary);line-height:1.6}
+
+.rfooter{padding:10px 14px;display:flex;flex-wrap:wrap;gap:5px;border-top:0.5px solid var(--color-border-tertiary)}
+.ftag{font-size:9px;padding:3px 8px;border-radius:4px;font-weight:500}
+.fa{background:#eeedfe;color:#3c3489}
+.fb{background:#e1f5ee;color:#085041}
+.fc{background:#eaf3de;color:#27500a}
+</style>
+
+<div class="root">
+
+  <nav class="nav">
+    <div class="brand">
+      <div class="brand-ico">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M10 3C10 3 7.5 3 7.5 5.5V10M10 3C10 3 12.5 3 12.5 5.5V10M10 3V10M7.5 10C7.5 10 4 10 4 13.5V17H16V13.5C16 10 12.5 10 12.5 10" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="brand-name">SignSpeak <span>Studio</span></div>
+    </div>
+    <div class="vsep"></div>
+    <span class="ntag">ASL · Real-time</span>
+    <div class="nright">
+      <div class="livepill"><div class="ldot"></div>Streaming live</div>
+      <button class="nbtn">
+        <svg viewBox="0 0 12 12" fill="none"><path d="M2 6h8M6 2v8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        Switch mode
+      </button>
+      <button class="nbtn danger">
+        <svg viewBox="0 0 12 12" fill="none"><path d="M8 6H2m3-3L2 6l3 3M10 3v6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Sign out
+      </button>
+    </div>
+  </nav>
+
+  <div class="body">
+
+    <div class="left">
+      <div class="sec-label">Live feed &amp; model output</div>
+
+      <div class="cam-skeleton-row">
+
+        <div class="cam-card">
+          <div class="cam-header">
+            <div class="cam-header-left">
+              <div class="cam-hico">
+                <svg viewBox="0 0 12 12" fill="none"><rect x="1" y="2.5" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.1"/><circle cx="6" cy="6" r="1.8" stroke="currentColor" stroke-width="1"/></svg>
+              </div>
+              <div>
+                <div class="cam-htitle">Camera feed</div>
+                <div class="cam-hsub">Cam 0 · 720p · Mirrored</div>
+              </div>
+            </div>
+            <div class="cam-status"><div class="csdot"></div>CNN active</div>
+          </div>
+          <div class="camview">
+            <div class="cam-ph">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="15" rx="2" stroke="white" stroke-width="1.3"/><circle cx="12" cy="12" r="3.5" stroke="white" stroke-width="1.3"/></svg>
+              <p>Initializing camera</p>
+            </div>
+            <div class="badge-tl">
+              <svg viewBox="0 0 8 8" fill="none" style="width:7px;height:7px"><circle cx="4" cy="4" r="2.5" stroke="rgba(255,255,255,.4)" stroke-width=".8"/></svg>
+              REC
+            </div>
+            <div class="badge-tr">
+              <svg viewBox="0 0 8 8" fill="none" style="width:7px;height:7px"><path d="M1 6L4 2L7 6" stroke="#97c459" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Model ready
+            </div>
+            <div class="badge-br">Live preview</div>
+          </div>
+          <div class="cam-footer">
+            <span class="cam-footer-stat">Source <span>Webcam</span></span>
+            <span class="cam-footer-stat">Resolution <span>1280×720</span></span>
+            <span class="cam-footer-stat">FPS <span>30</span></span>
+          </div>
+        </div>
+
+        <div class="skel-char-col">
+          <div class="panel">
+            <div class="ph">
+              <div class="ph-ico green">
+                <svg viewBox="0 0 12 14" fill="none"><path d="M6 1C6 1 4 1 4 3.5V8M6 1C6 1 8 1 8 3.5V8M6 1V8M4 8C4 8 1.5 8 1.5 11H10.5C10.5 8 8 8 8 8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+              <div>
+                <div class="ph-title">Hand skeleton</div>
+                <div class="ph-sub">MediaPipe · 21 keypoints</div>
+              </div>
+            </div>
+            <div class="skelview">
+              <svg viewBox="0 0 48 64" fill="none">
+                <circle cx="24" cy="57" r="4.5" fill="currentColor"/>
+                <line x1="24" y1="52" x2="24" y2="36" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="24" y1="36" x2="11" y2="23" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="11" y1="23" x2="8" y2="8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="24" y1="36" x2="18" y2="17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="18" y1="17" x2="16" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="24" y1="36" x2="24" y2="16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="24" y1="16" x2="24" y2="3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="24" y1="36" x2="30" y2="17" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="30" y1="17" x2="32" y2="4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <line x1="24" y1="36" x2="37" y2="23" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <line x1="37" y1="23" x2="40" y2="10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                <circle cx="24" cy="36" r="2.5" fill="currentColor"/>
+                <circle cx="11" cy="23" r="2" fill="currentColor"/><circle cx="18" cy="17" r="2" fill="currentColor"/><circle cx="24" cy="16" r="2" fill="currentColor"/><circle cx="30" cy="17" r="2" fill="currentColor"/><circle cx="37" cy="23" r="2" fill="currentColor"/>
+              </svg>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="ph">
+              <div class="ph-ico purple">
+                <svg viewBox="0 0 12 12" fill="none"><path d="M6 1L7.5 4.5H11L8.5 6.5L9.5 10L6 8L2.5 10L3.5 6.5L1 4.5H4.5L6 1Z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+              </div>
+              <div>
+                <div class="ph-title">Detected symbol</div>
+                <div class="ph-sub">CNN · Top-1 prediction</div>
+              </div>
+            </div>
+            <div class="charview">
+              <div class="charbig">A</div>
+              <div class="confrow">
+                <span class="conflbl">Confidence</span>
+                <div class="confbar"><div class="confill"></div></div>
+                <span class="confnum">87%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="right">
+
+      <div class="rs">
+        <div class="rh">
+          <div class="rh-left">
+            <div class="rh-ico"><svg viewBox="0 0 12 12" fill="none"><path d="M2 3h8M2 6h6M2 9h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="rh-title">Sentence output</span>
+          </div>
+          <span class="rh-badge">Live</span>
+        </div>
+        <div class="out-body">
+          <div class="out-text">HELLO WORLD<span class="cursor"></span></div>
+        </div>
+      </div>
+
+      <div class="rs">
+        <div class="rh">
+          <div class="rh-left">
+            <div class="rh-ico"><svg viewBox="0 0 12 12" fill="none"><path d="M2 6h2l2-4 2 8 2-4h2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="rh-title">Word suggestions</span>
+          </div>
+          <span class="rh-badge">Enchant NLP</span>
+        </div>
+        <div class="sug-grid">
+          <div class="sug">HELLO<span class="sug-key">1</span></div>
+          <div class="sug">HELP<span class="sug-key">2</span></div>
+          <div class="sug">HERE<span class="sug-key">3</span></div>
+          <div class="sug">HAVE<span class="sug-key">4</span></div>
+        </div>
+      </div>
+
+      <div class="rs">
+        <div class="rh">
+          <div class="rh-left">
+            <div class="rh-ico"><svg viewBox="0 0 12 12" fill="none"><path d="M2 9V4.5L6 2l4 2.5V9H8V7H4v2H2z" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="rh-title">Actions</span>
+          </div>
+        </div>
+        <div class="act-grid">
+          <button class="act primary">
+            <svg viewBox="0 0 12 12" fill="none"><path d="M1 4v4M3.5 2v8M6 3v6M8.5 1.5v9M11 2v8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+            Speak aloud
+          </button>
+          <button class="act">
+            <svg viewBox="0 0 12 12" fill="none"><path d="M1.5 4.5V3A1.5 1.5 0 013 1.5h6A1.5 1.5 0 0110.5 3v6A1.5 1.5 0 019 10.5H7.5M1.5 7.5v3h3v-3h-3z" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Capture &amp; describe
+          </button>
+          <button class="act red">
+            <svg viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2L2 10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+            Clear session
+          </button>
+        </div>
+      </div>
+
+      <div class="rs">
+        <div class="rh">
+          <div class="rh-left">
+            <div class="rh-ico"><svg viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.1"/><path d="M6 4v2.5l2 1" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="rh-title">AI description</span>
+          </div>
+        </div>
+        <div class="ai-body">
+          <div class="ai-box">Capture a frame to generate an accessibility description and speak it aloud.</div>
+        </div>
+      </div>
+
+      <div class="rs">
+        <div class="rh">
+          <div class="rh-left">
+            <div class="rh-ico"><svg viewBox="0 0 12 12" fill="none"><path d="M3 10V6M6 10V2M9 10V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></div>
+            <span class="rh-title">Gesture reference</span>
+          </div>
+        </div>
+        <div class="gest-list">
+          <div class="gest-row">
+            <div class="gico"><svg viewBox="0 0 12 14" fill="none"><path d="M6 2v6M3.5 4.5V3M8.5 4.5V3M2 8v1.5c0 1.5 1.8 2.5 4 2.5s4-1 4-2.5V8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="gtxt"><strong>Index up</strong> — confirm letter</span>
+          </div>
+          <div class="gest-row">
+            <div class="gico"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5c0-.83.67-1.5 1.5-1.5h4c.83 0 1.5.67 1.5 1.5v4c0 .83-.67 1.5-1.5 1.5H4c-.83 0-1.5-.67-1.5-1.5v-4z" stroke="currentColor" stroke-width="1.1"/></svg></div>
+            <span class="gtxt"><strong>Closed fist</strong> — A / S / E / M</span>
+          </div>
+          <div class="gest-row">
+            <div class="gico"><svg viewBox="0 0 12 12" fill="none"><path d="M2 4h8M2 6h8M2 8h8" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="gtxt"><strong>Open palm</strong> — B / W</span>
+          </div>
+          <div class="gest-row">
+            <div class="gico"><svg viewBox="0 0 12 12" fill="none"><path d="M4 5c0-.83.67-1.5 1.5-1.5h1c.83 0 1.5.67 1.5 1.5v1H4V5zM4 6v3M8 6v3" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="gtxt"><strong>Pinch</strong> — backspace</span>
+          </div>
+          <div class="gest-row">
+            <div class="gico"><svg viewBox="0 0 12 12" fill="none"><path d="M4 9V4M8 9V4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></div>
+            <span class="gtxt"><strong>Two fingers</strong> — U / V / R</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rfooter">
+        <span class="ftag fa">CNN 8-group</span>
+        <span class="ftag fb">pyttsx3 TTS</span>
+        <span class="ftag fc">Enchant NLP</span>
+      </div>
+
+    </div>
+  </div>
+</div>

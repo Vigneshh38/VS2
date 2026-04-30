@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Language To Text & Speech Conversion</title>
+  <meta name="description"
+    content="Real-time sign language to text and speech conversion using AI-powered hand gesture recognition with CNN deep learning model.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #06060b;
+      --bg-secondary: #0d0d16;
+      --bg-card: #111120;
+      --bg-card-hover: #16162a;
+      --bg-elevated: #1a1a30;
+      --border: rgba(99, 102, 241, 0.12);
+      --border-hover: rgba(99, 102, 241, 0.3);
+      --accent: #818cf8;
+      --accent-bright: #a5b4fc;
+      --accent-glow: rgba(129, 140, 248, 0.4);
+      --cyan: #22d3ee;
+      --cyan-glow: rgba(34, 211, 238, 0.35);
+      --green: #34d399;
+      --green-dim: rgba(52, 211, 153, 0.15);
+      --red: #f87171;
+      --red-dim: rgba(248, 113, 113, 0.12);
+      --amber: #fbbf24;
+      --text: #e8eaf6;
+      --text-secondary: #9196c1;
+      --text-muted: #5c6096;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --radius-xs: 6px;
+      --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.3);
+      --shadow-glow: 0 0 40px rgba(129, 140, 248, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background: var(--bg-primary);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* ─── Ambient background effects ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background:
+        radial-gradient(ellipse at 20% 20%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(34, 211, 238, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(129, 140, 248, 0.02) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+      animation: ambientShift 20s ease-in-out infinite alternate;
+    }
+
+    @keyframes ambientShift {
+      0% {
+        transform: translate(0, 0) rotate(0deg);
+      }
+
+      100% {
+        transform: translate(-2%, -2%) rotate(3deg);
+      }
+    }
+
+    /* ─── Scanline overlay ─── */
+    .scanline-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(0deg, transparent, transparent 3px,
+          rgba(129, 140, 248, 0.008) 3px, rgba(129, 140, 248, 0.008) 6px);
+      pointer-events: none;
+      z-index: 9998;
+    }
+
+    /* ─── Header ─── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(13, 13, 22, 0.85);
+      backdrop-filter: blur(20px) saturate(1.4);
+      -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-mark {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(129, 140, 248, 0.25);
+      flex-shrink: 0;
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--accent-bright), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-top: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 24px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-family: var(--font-mono);
+      transition: all 0.3s;
+    }
+
+    .status-badge.live {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .status-badge.live .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+
+    .mode-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 150px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 211, 238, 0.28);
+      background: rgba(34, 211, 238, 0.08);
+      color: var(--cyan);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    .mode-link:hover {
+      background: rgba(34, 211, 238, 0.14);
+      border-color: rgba(34, 211, 238, 0.42);
+      transform: translateY(-1px);
+    }
+
+    .logout-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 96px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(248, 113, 113, 0.28);
+      background: rgba(248, 113, 113, 0.08);
+      color: #fca5a5;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: all 0.2s ease;
+    }
+
+    .logout-link:hover {
+      background: rgba(248, 113, 113, 0.14);
+      border-color: rgba(248, 113, 113, 0.42);
+      transform: translateY(-1px);
+    }
+
+    /* ─── Main Layout ─── */
+    .app-container {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 20px;
+      padding: 20px 28px 40px;
+      max-width: 1480px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .card:hover {
+      border-color: var(--border-hover);
+      box-shadow: var(--shadow-card), var(--shadow-glow);
+    }
+
+    .card-header {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .card-header .indicator {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .card-header .indicator.cyan {
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan-glow);
+    }
+
+    .card-header .indicator.accent {
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .card-header .indicator.green {
+      background: var(--green);
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.4);
+    }
+
+    .card-header .indicator.red {
+      background: var(--red);
+      box-shadow: 0 0 8px rgba(248, 113, 113, 0.4);
+    }
+
+    /* ─── Camera Feed ─── */
+    .camera-card {
+      position: relative;
+    }
+
+    .camera-feed {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      display: block;
+      background: #000;
+      object-fit: cover;
+    }
+
+    .camera-overlay {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      pointer-events: none;
+    }
+
+    .camera-tag {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(6px);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      letter-spacing: 1px;
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    /* Camera On Button */
+    .camera-on-container {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+
+    .camera-on-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, var(--cyan), var(--accent));
+      color: var(--bg-primary);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(34, 211, 238, 0.3);
+      transition: all 0.3s ease;
+    }
+
+    .camera-on-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(34, 211, 238, 0.4);
+    }
+
+    .camera-on-btn:active {
+      transform: translateY(0);
+    }
+
+    /* ─── Right Column ─── */
+    .right-column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ─── Skeleton + Character Row ─── */
+    .top-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .skeleton-feed {
+      width: 100%;
+      aspect-ratio: 1;
+      display: block;
+      background: #000;
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    /* ─── Character Display ─── */
+    .char-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      min-height: 200px;
+    }
+
+    .char-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(129, 140, 248, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .char-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .char-value {
+      font-size: 72px;
+      font-weight: 800;
+      font-family: var(--font-mono);
+      background: linear-gradient(180deg, var(--accent-bright) 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 24px var(--accent-glow));
+      line-height: 1;
+      min-height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .char-value.flash {
+      animation: charFlash 0.3s ease;
+    }
+
+    @keyframes charFlash {
+      0% {
+        transform: scale(1.15);
+        filter: drop-shadow(0 0 40px var(--accent-glow)) brightness(1.4);
+      }
+
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    /* ─── Sentence Output ─── */
+    .sentence-body {
+      padding: 16px 18px;
+    }
+
+    .sentence-text {
+      font-size: 18px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+      color: var(--text);
+      min-height: 52px;
+      padding: 14px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      word-break: break-word;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      position: relative;
+    }
+
+    .sentence-text::after {
+      content: '▎';
+      color: var(--accent);
+      animation: cursor-blink 1s step-end infinite;
+      font-weight: 400;
+    }
+
+    @keyframes cursor-blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0;
+      }
+    }
+
+    /* ─── Suggestions ─── */
+    .suggestions-body {
+      padding: 14px 18px;
+    }
+
+    .suggestion-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .suggestion-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-height: 40px;
+      position: relative;
+    }
+
+    .suggestion-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent-bright);
+      background: rgba(129, 140, 248, 0.06);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(129, 140, 248, 0.1);
+    }
+
+    .suggestion-btn:active {
+      transform: translateY(0);
+    }
+
+    .suggestion-btn .idx {
+      position: absolute;
+      top: 4px;
+      right: 6px;
+      font-size: 9px;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* ─── Action Buttons ─── */
+    .actions-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: 1px solid;
+      transition: all 0.25s ease;
+    }
+
+    .action-btn .icon {
+      font-size: 14px;
+    }
+
+    .btn-speak {
+      background: linear-gradient(135deg, rgba(129, 140, 248, 0.1), rgba(34, 211, 238, 0.08));
+      color: var(--accent-bright);
+      border-color: rgba(129, 140, 248, 0.3);
+    }
+
+    .btn-speak:hover {
+      background: linear-gradient(135deg, rgba(129, 140, 248, 0.2), rgba(34, 211, 238, 0.15));
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(129, 140, 248, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .btn-ai {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(129, 140, 248, 0.1));
+      color: var(--cyan);
+      border-color: rgba(34, 211, 238, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-ai::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn-ai:hover::before {
+      left: 100%;
+    }
+
+    .btn-ai:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-clear {
+      background: var(--red-dim);
+      color: var(--red);
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+
+    .btn-clear:hover {
+      background: rgba(248, 113, 113, 0.18);
+      border-color: var(--red);
+      box-shadow: 0 0 20px rgba(248, 113, 113, 0.12);
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active {
+      transform: translateY(0) !important;
+    }
+
+    /* ─── Accessibility Description ─── */
+    .analysis-box {
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-card);
+      box-shadow: var(--shadow-card);
+    }
+
+    .analysis-text {
+      min-height: 64px;
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    /* ─── Gesture Guide Panel ─── */
+    .gesture-guide-card {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.08), rgba(129, 140, 248, 0.05));
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .gesture-guide {
+      padding: 14px 18px;
+    }
+
+    .gesture-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .gesture-chip {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-secondary);
+    }
+
+    .gesture-chip .gesture-icon {
+      font-size: 12px;
+    }
+
+    /* ─── Gesture Guide Link Card ─── */
+    .guide-link-card {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(129, 140, 248, 0.05));
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .guide-link-card:hover {
+      border-color: rgba(34, 211, 238, 0.4);
+      box-shadow: 0 4px 20px rgba(34, 211, 238, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .guide-link-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+    }
+
+    .guide-link-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .guide-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--cyan), var(--accent));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 15px rgba(34, 211, 238, 0.3);
+    }
+
+    .guide-text h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .guide-text p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .guide-arrow {
+      font-size: 20px;
+      color: var(--cyan);
+      transition: transform 0.3s ease;
+    }
+
+    .guide-link-card:hover .guide-arrow {
+      transform: translateX(4px);
+    }
+
+    /* ─── Info Badge ─── */
+    .info-card {
+      padding: 14px 18px;
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .info-card .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .tag-model {
+      background: rgba(129, 140, 248, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(129, 140, 248, 0.2);
+    }
+
+    .tag-tts {
+      background: rgba(34, 211, 238, 0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(34, 211, 238, 0.2);
+    }
+
+    .tag-spell {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 960px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        padding: 16px;
+      }
+
+      .top-row {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      header {
+        padding: 0 16px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .top-row {
+        grid-template-columns: 1fr;
+      }
+
+      .char-value {
+        font-size: 56px;
+        min-height: 70px;
+      }
+
+      .header-title {
+        font-size: 12px;
+        letter-spacing: 1px;
+      }
+
+      .actions-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ─── Utility animations ─── */
+    .fade-in {
+      animation: fadeIn 0.5s ease both;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Stagger children */
+    .right-column>*:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .right-column>*:nth-child(2) {
+      animation-delay: 0.1s;
+    }
+
+    .right-column>*:nth-child(3) {
+      animation-delay: 0.15s;
+    }
+
+    .right-column>*:nth-child(4) {
+      animation-delay: 0.2s;
+    }
+
+    .right-column>*:nth-child(5) {
+      animation-delay: 0.25s;
+    }
+
+    .right-column>*:nth-child(6) {
+      animation-delay: 0.3s;
+    }
+
+    .right-column>*:nth-child(7) {
+      animation-delay: 0.35s;
+    }
+
+    /* ─── Scrollbar ─── */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--text-muted);
+    }
+
+    /* ─── Toast notification ─── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .toast.success {
+      background: var(--green-dim);
+      color: var(--green);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+    }
+
+    .toast.info {
+      background: rgba(129, 140, 248, 0.12);
+      color: var(--accent-bright);
+      border: 1px solid rgba(129, 140, 248, 0.3);
+    }
+
+    /* ─── Camera Selector ─── */
+    .camera-select-wrapper {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .camera-select-wrapper label {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .camera-select {
+      background: var(--bg-secondary);
+      color: var(--cyan);
+      border: 1px solid rgba(34, 211, 238, 0.25);
+      border-radius: 6px;
+      padding: 4px 24px 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2322d3ee'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      transition: all 0.2s;
+      min-width: 180px;
+    }
+
+    .camera-select:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 8px rgba(34, 211, 238, 0.15);
+    }
+
+    .camera-select:focus {
+      border-color: var(--cyan);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.2);
+    }
+
+    .camera-select option {
+      background: var(--bg-card);
+      color: var(--text);
+    }
+
+    .camera-switching {
+      font-size: 10px;
+      color: var(--amber);
+      letter-spacing: 1px;
+      animation: pulse-dot 1s ease-in-out infinite;
+    }
+
+    /* ─── Star Background ─── */
+    .stars-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) ease-in-out infinite;
+      opacity: 0;
+    }
+
+    @keyframes twinkle {
+
+      0%,
+      100% {
+        opacity: 0;
+        transform: scale(0.5);
+      }
+
+      50% {
+        opacity: var(--opacity);
+        transform: scale(1);
+      }
+    }
+
+    /* Shooting star */
+    .shooting-star {
+      position: absolute;
+      width: 100px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(129, 140, 248, 0.8), transparent);
+      animation: shoot 3s linear infinite;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    @keyframes shoot {
+      0% {
+        transform: translateX(-100px) translateY(100px) rotate(-45deg);
+        opacity: 1;
+      }
+
+      100% {
+        transform: translateX(calc(100vw + 100px)) translateY(calc(-100vh - 100px)) rotate(-45deg);
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="stars-container" id="starsContainer"></div>
+
+
+  <div class="scanline-overlay"></div>
+
+  <!-- ─── Header ─── -->
+  <header>
+    <img src="{{ url_for('static', filename='logo.png') }}"
+      style="width:42px; height:42px; border-radius:10px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+    <div>
+      <div class="header-title">Virtual SignS</div>
+      <div class="header-subtitle">Real-time Sign Recognition</div>
+    </div>
+
+    <div class="header-actions">
+      <div class="status-badge live" id="statusBadge">
+        <div class="status-dot"></div>
+        <span>Live</span>
+      </div>
+
+      <!-- 🔥 Language Buttons -->
+      <div
+        style="display:flex; gap:6px; padding:4px; background:rgba(255,255,255,0.08); border-radius:12px; backdrop-filter:blur(10px);">
+
+        <button class="lang-btn active"
+          style="border:none; padding:6px 12px; border-radius:8px; background:linear-gradient(135deg,#007bff,#00c6ff); color:white; font-size:13px; font-weight:500; cursor:pointer; box-shadow:0 2px 10px rgba(0,123,255,0.4);"
+          onclick="setLang(this)">
+          EN
+        </button>
+
+        <button class="lang-btn"
+          style="border:none; padding:6px 12px; border-radius:8px; background:transparent; color:#ccc; font-size:13px; font-weight:500; cursor:pointer;"
+          onclick="setLang(this)">
+          TA
+        </button>
+
+        <button class="lang-btn"
+          style="border:none; padding:6px 12px; border-radius:8px; background:transparent; color:#ccc; font-size:13px; font-weight:500; cursor:pointer;"
+          onclick="setLang(this)">
+          TE
+        </button>
+
+      </div>
+
+      <a class="mode-link" href="/action-detection">Action Detection</a>
+      <a class="logout-link" href="/logout">Logout</a>
+    </div>
+  </header>
+
+  <!-- ─── Main Grid ─── -->
+  <div class="app-container">
+
+    <!-- Left: Camera Feed -->
+    <div>
+      <div class="card camera-card fade-in">
+        <div class="card-header">
+          <span class="indicator cyan"></span>
+          Live Camera Feed
+          <div class="camera-select-wrapper">
+            <label for="cameraSelect">Source:</label>
+            <select id="cameraSelect" class="camera-select" onchange="switchCamera(this.value)">
+              <option value="-1">Loading...</option>
+            </select>
+            <span class="camera-switching" id="cameraSwitching" style="display:none">Switching...</span>
+          </div>
+        </div>
+        <div style="position: relative;">
+          <img id="cameraFeed" class="camera-feed" src="/video_feed" alt="Camera Feed" style="display: none;">
+          <div id="cameraPlaceholder" class="camera-feed"
+            style="display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px;">
+            Camera off — click 📷 Camera On to start
+          </div>
+          <div class="camera-on-container">
+            <button class="camera-on-btn" id="cameraOnBtn" onclick="toggleCamera()">
+              <span>📷</span> Camera On
+            </button>
+          </div>
+        </div>
+        <div class="camera-overlay">
+          <span class="camera-tag">WEBCAM • MIRRORED</span>
+          <span class="camera-tag" id="fpsTag">CNN MODEL ACTIVE</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="right-column">
+
+      <!-- Row: Skeleton + Character -->
+      <div class="top-row">
+        <div class="card fade-in">
+          <div class="card-header">
+            <span class="indicator green"></span>
+            Hand Skeleton
+          </div>
+          <img id="skeletonFeed" class="skeleton-feed" src="/skeleton_feed" alt="Hand Skeleton" style="display: none;">
+          <div id="skeletonPlaceholder" class="skeleton-feed"
+            style="display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px;">
+            <span style="opacity: 0.5;">Waiting for camera...</span>
+          </div>
+        </div>
+
+        <div class="card char-card fade-in">
+          <div class="char-label">Detected Symbol</div>
+          <div class="char-value" id="charDisplay">–</div>
+        </div>
+      </div>
+
+      <!-- Sentence -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <span class="indicator accent"></span>
+          Sentence Output
+        </div>
+        <div class="sentence-body">
+          <div class="sentence-text" id="sentenceDisplay">&nbsp;</div>
+        </div>
+      </div>
+
+      <!-- Suggestions -->
+      <div class="card fade-in">
+        <div class="card-header">
+          <span class="indicator green"></span>
+          Word Suggestions
+        </div>
+        <div class="suggestions-body">
+          <div class="suggestion-grid">
+            <button class="suggestion-btn" id="sug1" onclick="applySuggestion(1)"><span
+                class="idx">1</span>&nbsp;</button>
+            <button class="suggestion-btn" id="sug2" onclick="applySuggestion(2)"><span
+                class="idx">2</span>&nbsp;</button>
+            <button class="suggestion-btn" id="sug3" onclick="applySuggestion(3)"><span
+                class="idx">3</span>&nbsp;</button>
+            <button class="suggestion-btn" id="sug4" onclick="applySuggestion(4)"><span
+                class="idx">4</span>&nbsp;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions-row fade-in">
+        <button class="action-btn btn-speak" id="btnSpeak" onclick="speakText()">
+          <span class="icon">🔊</span> Speak
+        </button>
+        <button class="action-btn btn-ai" id="btnAI" onclick="captureAndDescribe()">
+          <span class="icon">✨</span> AI Capture
+        </button>
+        <button class="action-btn btn-clear" id="btnClear" onclick="clearAll()">
+          <span class="icon">✕</span> Clear
+        </button>
+      </div>
+
+      <!-- Accessibility Description -->
+      <div class="analysis-box fade-in">
+        <div class="card-header" style="padding:0; border:0;">
+          <span class="indicator cyan"></span>
+          Accessibility Description
+        </div>
+        <div class="analysis-text" id="analysisText">Capture a frame to analyze visible sign or text and speak it aloud.
+        </div>
+      </div>
+
+      <!-- Gesture Guide Link Card -->
+      <a href="{{ url_for('gestures') }}" target="_blank" style="text-decoration: none; color: inherit;">
+        <div class="card guide-link-card fade-in">
+          <div class="guide-link-content">
+            <div class="guide-link-left">
+              <div class="guide-icon">📖</div>
+              <div class="guide-text">
+                <h4>Gesture Guide</h4>
+                <p>Learn all hand signs the model recognizes</p>
+              </div>
+            </div>
+            <div class="guide-arrow">→</div>
+          </div>
+        </div>
+      </a>
+      <!-- Toast -->
+      <div class="toast" id="toast"></div>
+
+      <script>
+
+        let selectedLang = "EN";
+
+        document.addEventListener("DOMContentLoaded", () => {
+          document.querySelectorAll(".lang-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+              selectedLang = btn.innerText;
+              console.log("Selected Language:", selectedLang); // debug
+            });
+          });
+        });
+
+        // ─── State ───
+        let cameraActive = false;
+        const charDisplay = document.getElementById('charDisplay');
+        const sentenceDisplay = document.getElementById('sentenceDisplay');
+        const sug1 = document.getElementById('sug1');
+        const sug2 = document.getElementById('sug2');
+        const sug3 = document.getElementById('sug3');
+        const sug4 = document.getElementById('sug4');
+        const analysisText = document.getElementById('analysisText');
+        const cameraFeed = document.getElementById('cameraFeed');
+        const cameraPlaceholder = document.getElementById('cameraPlaceholder');
+        const skeletonFeed = document.getElementById('skeletonFeed');
+        const skeletonPlaceholder = document.getElementById('skeletonPlaceholder');
+        const cameraOnBtn = document.getElementById('cameraOnBtn');
+
+        let prevCharValue = '';
+        let suggestions = [' ', ' ', ' ', ' '];
+        let pollInterval = null;
+
+        // ─── Camera Toggle ───
+        function toggleCamera() {
+          cameraActive = !cameraActive;
+          if (cameraActive) {
+            cameraFeed.style.display = 'block';
+            cameraPlaceholder.style.display = 'none';
+            skeletonFeed.style.display = 'block';
+            skeletonPlaceholder.style.display = 'none';
+            cameraOnBtn.innerHTML = '<span>⏹</span> Camera Off';
+            cameraOnBtn.style.background = 'linear-gradient(135deg, var(--red), #ef4444)';
+            // Start polling when camera is on
+            if (!pollInterval) {
+              pollInterval = setInterval(pollState, 150);
+            }
+            showToast('Camera started', 'success');
+          } else {
+            cameraFeed.style.display = 'none';
+            cameraPlaceholder.style.display = 'flex';
+            skeletonFeed.style.display = 'none';
+            skeletonPlaceholder.style.display = 'flex';
+            cameraOnBtn.innerHTML = '<span>📷</span> Camera On';
+            cameraOnBtn.style.background = 'linear-gradient(135deg, var(--cyan), var(--accent))';
+            showToast('Camera stopped', 'info');
+          }
+        }
+
+        // ─── State polling ───
+        async function pollState() {
+          if (!cameraActive) return;
+          try {
+            const res = await fetch('/state');
+            const data = await res.json();
+
+            // Update character display
+            let ch = data.character || '–';
+            let displayCh = ch;
+            if (ch === 'next') displayCh = '→';
+            else if (ch === 'Backspace') displayCh = '⌫';
+            else if (ch === ' ') displayCh = '␣';
+            else if (ch === '  ') displayCh = '␣␣';
+
+            if (displayCh !== prevCharValue) {
+              charDisplay.textContent = displayCh;
+              charDisplay.classList.remove('flash');
+              void charDisplay.offsetWidth; // trigger reflow
+              charDisplay.classList.add('flash');
+              prevCharValue = displayCh;
+            }
+
+            // Update sentence
+            sentenceDisplay.textContent = data.sentence || ' ';
+
+            // Update suggestions
+            suggestions = [data.word1 || ' ', data.word2 || ' ', data.word3 || ' ', data.word4 || ' '];
+            sug1.childNodes[1].textContent = suggestions[0];
+            sug2.childNodes[1].textContent = suggestions[1];
+            sug3.childNodes[1].textContent = suggestions[2];
+            sug4.childNodes[1].textContent = suggestions[3];
+            analysisText.textContent = data.analysis_result || 'Capture a frame to analyze visible sign or text and speak it aloud.';
+
+          } catch (err) {
+            // Silent retry
+          }
+        }
+
+        // ─── Suggestion click ───
+        async function applySuggestion(idx) {
+          const word = suggestions[idx - 1];
+          if (!word || !word.trim()) return;
+          try {
+            const res = await fetch('/action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ suggestion: word })
+            });
+            const data = await res.json();
+            sentenceDisplay.textContent = data.sentence || ' ';
+            showToast('Applied: ' + word.toUpperCase(), 'success');
+          } catch (err) {
+            showToast('Error applying suggestion', 'info');
+          }
+        }
+
+        // ─── Speak ───
+        async function speakText(customText = null) {
+          const btn = document.getElementById('btnSpeak');
+          btn.style.pointerEvents = 'none';
+          btn.innerHTML = '<span class="icon">🔊</span> Speaking...';
+
+          try {
+
+            // 🔥 Decide what to speak
+            let textToSpeak = customText;
+
+            // If no custom text → use sentence output
+            if (!textToSpeak) {
+              textToSpeak = document.getElementById("sentenceDisplay").textContent.trim();
+            }
+
+            // If still empty → use AI description
+            if (!textToSpeak || textToSpeak === ' ' || textToSpeak === 'Translation will appear here...') {
+              textToSpeak = document.getElementById("analysisText").textContent.trim();
+            }
+
+            if (!textToSpeak || textToSpeak === '' || textToSpeak === 'Capture a frame to analyze visible sign or text and speak it aloud.') {
+              showToast('Nothing to speak', 'info');
+              btn.innerHTML = '<span class="icon">🔊</span> Speak';
+              btn.style.pointerEvents = 'auto';
+              return;
+            }
+
+            const res = await fetch('/speak', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                text: textToSpeak,
+                lang: selectedLang
+              })
+            });
+
+            const data = await res.json();
+
+            if (data.error) {
+              showToast('Voice error: ' + data.error, 'info');
+            } else if (data.audio) {
+              const audio = new Audio(data.audio);
+              audio.onplay = () => showToast('Playing audio...', 'success');
+              audio.onerror = (e) => {
+                console.error('Audio playback error:', e);
+                showToast('Audio playback failed', 'info');
+              };
+              audio.play().catch(e => {
+                console.error('Audio play error:', e);
+                showToast('Audio playback error', 'info');
+              });
+            } else {
+              showToast('No audio generated', 'info');
+            }
+
+          } catch (err) {
+            console.error('Speak error:', err);
+            showToast('Speech error: ' + err.message, 'info');
+          }
+
+          setTimeout(() => {
+            btn.innerHTML = '<span class="icon">🔊</span> Speak';
+            btn.style.pointerEvents = 'auto';
+          }, 2000);
+        }
+
+        // ─── AI Capture & Describe ───
+        async function captureAndDescribe() {
+          const btn = document.getElementById('btnAI');
+          analysisText.textContent = 'Analyzing captured frame...';
+          btn.style.pointerEvents = 'none';
+          btn.innerHTML = '<span class="icon">⏳</span> Analyzing...';
+
+          try {
+            const res = await fetch('/api/analyze-frame', { method: 'POST' });
+            const data = await res.json();
+
+            analysisText.textContent = data.analysis_result || data.error || 'No analysis result returned.';
+
+            // 🔥 THIS IS THE FIX
+            if (data.analysis_result) {
+              speakText(data.analysis_result);
+              showToast('Analysis complete', 'success');
+            }
+
+          } catch (err) {
+            analysisText.textContent = 'Image analysis failed.';
+            showToast('Analysis failed', 'info');
+          }
+
+          btn.innerHTML = '<span class="icon">✨</span> AI Capture';
+          btn.style.pointerEvents = 'auto';
+        }
+
+        // ─── Clear ───
+        async function clearAll() {
+          try {
+            await fetch('/clear', { method: 'POST' });
+            sentenceDisplay.textContent = ' ';
+            charDisplay.textContent = '–';
+            suggestions = [' ', ' ', ' ', ' '];
+            sug1.childNodes[1].textContent = ' ';
+            sug2.childNodes[1].textContent = ' ';
+            sug3.childNodes[1].textContent = ' ';
+            sug4.childNodes[1].textContent = ' ';
+            showToast('Cleared', 'success');
+          } catch (err) {
+            showToast('Error clearing', 'info');
+          }
+        }
+
+        // ─── Gesture Guide ───
+        function openGestureGuide() {
+          showToast('Opening gesture guide...', 'info');
+          // window.open('/gesture-guide', '_blank');
+        }
+
+        // ─── Toast utility ───
+        function showToast(msg, type = 'info') {
+          const toast = document.getElementById('toast');
+          toast.textContent = msg;
+          toast.className = 'toast ' + type + ' show';
+          setTimeout(() => { toast.classList.remove('show'); }, 2200);
+        }
+
+        // ─── Keyboard shortcuts ───
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'c' && e.ctrlKey && e.shiftKey) {
+            e.preventDefault();
+            clearAll();
+          }
+          if (e.key === 's' && e.ctrlKey && e.shiftKey) {
+            e.preventDefault();
+            speakText();
+          }
+          if (e.key === ' ' && e.ctrlKey) {
+            e.preventDefault();
+            toggleCamera();
+          }
+          // Number keys 1-4 for suggestions
+          if (['1', '2', '3', '4'].includes(e.key) && !e.ctrlKey && !e.altKey) {
+            const active = document.activeElement;
+            if (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA') {
+              applySuggestion(parseInt(e.key));
+            }
+          }
+        });
+
+        // ─── Camera selector ───
+        const cameraSelect = document.getElementById('cameraSelect');
+        const cameraSwitching = document.getElementById('cameraSwitching');
+
+        async function loadCameras() {
+          try {
+            const res = await fetch('/api/cameras');
+            const data = await res.json();
+            cameraSelect.innerHTML = '';
+            if (data.cameras && data.cameras.length > 0) {
+              data.cameras.forEach(cam => {
+                const opt = document.createElement('option');
+                opt.value = cam.index;
+                opt.textContent = cam.name;
+                if (cam.index === data.current) opt.selected = true;
+                cameraSelect.appendChild(opt);
+              });
+            } else {
+              const opt = document.createElement('option');
+              opt.value = '0';
+              opt.textContent = 'Default Camera';
+              cameraSelect.appendChild(opt);
+            }
+          } catch (err) {
+            cameraSelect.innerHTML = '<option value="0">USB2.0 HD UVC WebCam (322e:202c)</option>';
+          }
+        }
+
+        async function switchCamera(idx) {
+          if (idx === '-1') return;
+          cameraSwitching.style.display = 'inline';
+          cameraSelect.disabled = true;
+          try {
+            const res = await fetch('/api/camera/switch', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ index: parseInt(idx) })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              // Refresh the video feed by resetting the img src
+              const feed = document.getElementById('cameraFeed');
+              feed.src = '/video_feed?' + Date.now();
+              showToast('Switched to Camera ' + idx, 'success');
+            } else {
+              showToast(data.error || 'Failed to switch', 'info');
+            }
+          } catch (err) {
+            showToast('Camera switch error', 'info');
+          }
+          cameraSwitching.style.display = 'none';
+          cameraSelect.disabled = false;
+        }
+
+        // Load cameras on page load
+        loadCameras();
+
+        // Initial poll (will only run if camera is active)
+        pollState();
+
+        // ─── Generate Stars ───
+        function generateStars() {
+          const container = document.getElementById('starsContainer');
+          const starCount = 150;
+
+          for (let i = 0; i < starCount; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+
+            const size = Math.random() * 2 + 1;
+            const x = Math.random() * 100;
+            const y = Math.random() * 100;
+            const duration = Math.random() * 3 + 2;
+            const delay = Math.random() * 5;
+            const opacity = Math.random() * 0.7 + 0.3;
+
+            star.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        left: ${x}%;
+        top: ${y}%;
+        --duration: ${duration}s;
+        --opacity: ${opacity};
+        animation-delay: ${delay}s;
+      `;
+
+            container.appendChild(star);
+          }
+
+          // Add shooting stars occasionally
+          setInterval(() => {
+            const shootingStar = document.createElement('div');
+            shootingStar.className = 'shooting-star';
+            shootingStar.style.top = Math.random() * 50 + '%';
+            shootingStar.style.left = Math.random() * 50 + '%';
+            shootingStar.style.animationDuration = (Math.random() * 2 + 2) + 's';
+            container.appendChild(shootingStar);
+
+            setTimeout(() => shootingStar.remove(), 4000);
+          }, 8000);
+        }
+
+        generateStars();
+      </script>
+
+      <script>
+        function setLang(btn) {
+          selectedLang = btn.innerText;
+
+          document.querySelectorAll(".lang-btn").forEach(b => {
+            b.style.background = "transparent";
+            b.style.color = "#ccc";
+            b.style.boxShadow = "none";
+          });
+
+          btn.style.background = "linear-gradient(135deg,#007bff,#00c6ff)";
+          btn.style.color = "white";
+          btn.style.boxShadow = "0 2px 10px rgba(0,123,255,0.4)";
+        }
+      </script>
+
+</body>
+
+</html>

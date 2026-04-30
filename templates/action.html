@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Action Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070b16;
+      --panel: #111827;
+      --panel-2: #0f172a;
+      --line: rgba(56, 189, 248, 0.22);
+      --text: #e5eefb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --danger: #fb7185;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(56, 189, 248, 0.16), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(34, 197, 94, 0.14), transparent 20%),
+        linear-gradient(135deg, #060914 0%, #09101c 45%, #0e1628 100%);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(10, 15, 27, 0.88);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--accent), #22d3ee);
+      color: #04111d;
+      font-weight: 800;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 3px;
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 118px;
+      height: 38px;
+      padding: 0 16px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .pill.back {
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .pill.logout {
+      color: #fda4af;
+      border-color: rgba(251, 113, 133, 0.28);
+      background: rgba(251, 113, 133, 0.08);
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.95fr;
+      gap: 20px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .card-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .media {
+      padding: 16px;
+    }
+
+    .media img {
+      width: 100%;
+      display: block;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #000;
+    }
+
+    .sidebar {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .metric,
+    .sentence-box,
+    .action-list,
+    .actions-row {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(11, 18, 34, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .metric-value {
+      min-height: 72px;
+      font-size: clamp(40px, 5vw, 68px);
+      font-weight: 800;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .sentence-value {
+      min-height: 96px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      padding: 14px 16px;
+      font-size: 22px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .actions-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .action-chip {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+    }
+
+    .prob {
+      color: var(--green);
+    }
+
+    .actions-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .analysis-box {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(11, 18, 34, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .analysis-value {
+      min-height: 74px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    button {
+      flex: 1;
+      height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: var(--panel-2);
+    }
+
+    .speak-btn {
+      color: var(--green);
+      border-color: rgba(34, 197, 94, 0.25);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    .clear-btn {
+      color: var(--danger);
+      border-color: rgba(251, 113, 133, 0.25);
+      background: rgba(251, 113, 133, 0.08);
+    }
+
+    .analyze-btn {
+      color: var(--accent);
+      border-color: rgba(56, 189, 248, 0.25);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 1024px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      header {
+        flex-wrap: wrap;
+      }
+
+      .header-actions {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="brand">AD</div>
+    <div>
+      <div class="title">Action Detection</div>
+      <div class="subtitle">MediaPipe Holistic + LSTM action recognition</div>
+    </div>
+    <div class="header-actions">
+      <a class="pill back" href="/translate">Alphabet Detection</a>
+      <a class="pill logout" href="/logout">Logout</a>
+    </div>
+    <div style="display:flex; gap:6px; padding:4px; background:rgba(255,255,255,0.08); border-radius:12px;">
+
+      <button class="lang-btn active"
+        style="border:none; padding:6px 12px; border-radius:8px; background:linear-gradient(135deg,#007bff,#00c6ff); color:white;"
+        onclick="setLang(this)">EN</button>
+
+      <button class="lang-btn"
+        style="border:none; padding:6px 12px; border-radius:8px; background:transparent; color:#ccc;"
+        onclick="setLang(this)">TA</button>
+
+      <button class="lang-btn"
+        style="border:none; padding:6px 12px; border-radius:8px; background:transparent; color:#ccc;"
+        onclick="setLang(this)">TE</button>
+
+    </div>
+  </header>
+
+  <div class="shell">
+    <section class="card">
+      <div class="card-head">Live Action Feed</div>
+      <div class="media">
+        <img src="/skeleton_feed" alt="Processed action detection feed">
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <section class="metric">
+        <div class="label">Detected Action</div>
+        <div class="metric-value" id="actionDisplay">-</div>
+      </section>
+
+      <section class="sentence-box">
+        <div class="label">Sentence Output</div>
+        <div class="sentence-value" id="sentenceDisplay">&nbsp;</div>
+      </section>
+
+      <section class="action-list">
+        <div class="label">Action Scores</div>
+        <div class="actions-grid">
+          <div class="action-chip"><span>hello</span><span class="prob" id="prob0">0.00</span></div>
+          <div class="action-chip"><span>thanks</span><span class="prob" id="prob1">0.00</span></div>
+          <div class="action-chip"><span>iloveyou</span><span class="prob" id="prob2">0.00</span></div>
+        </div>
+      </section>
+
+      <section class="actions-row">
+        <button class="speak-btn" onclick="speakText()">Speak</button>
+        <button class="analyze-btn" id="btnAnalyze" onclick="captureAndDescribe()">Capture & Describe</button>
+        <button class="clear-btn" onclick="clearAll()">Clear</button>
+      </section>
+
+      <section class="analysis-box">
+        <div class="label">Accessibility Description</div>
+        <div class="analysis-value" id="analysisText">Capture a frame to analyze visible sign or text and speak it
+          aloud.</div>
+      </section>
+
+      <section class="note">
+        This page uses the action model from the second project and frames a sentence from detected actions using the
+        same web app and webcam.
+      </section>
+    </aside>
+  </div>
+
+  <script>
+    let selectedLang = localStorage.getItem("lang") || "EN";
+
+    function setLang(btn) {
+      selectedLang = btn.innerText;
+
+      localStorage.setItem("lang", selectedLang);
+
+      document.querySelectorAll(".lang-btn").forEach(b => {
+        b.style.background = "transparent";
+        b.style.color = "#ccc";
+      });
+
+      btn.style.background = "linear-gradient(135deg,#007bff,#00c6ff)";
+      btn.style.color = "white";
+    }
+
+    /* 🔥 PUT THIS EXACTLY HERE */
+    document.querySelectorAll(".lang-btn").forEach(btn => {
+      if (btn.innerText === selectedLang) {
+        btn.style.background = "linear-gradient(135deg,#007bff,#00c6ff)";
+        btn.style.color = "white";
+      }
+    });
+    const actionDisplay = document.getElementById('actionDisplay');
+    const sentenceDisplay = document.getElementById('sentenceDisplay');
+    const analysisText = document.getElementById('analysisText');
+    const probEls = [
+      document.getElementById('prob0'),
+      document.getElementById('prob1'),
+      document.getElementById('prob2')
+    ];
+
+    async function pollState() {
+      try {
+        const res = await fetch('/state');
+        const data = await res.json();
+        actionDisplay.textContent = data.character || '-';
+        sentenceDisplay.textContent = data.sentence || ' ';
+        analysisText.textContent = data.analysis_result || 'Capture a frame to analyze visible sign or text and speak it aloud.';
+        const probs = data.action_probabilities || [];
+        probEls.forEach((el, index) => {
+          const value = probs[index] || 0;
+          el.textContent = value.toFixed(2);
+        });
+      } catch (err) {
+      }
+    }
+
+    async function speakText() {
+      try {
+        // Get the sentence text
+        const sentenceText = sentenceDisplay.textContent.trim();
+        const analysisTxt = analysisText.textContent.trim();
+        
+        // Determine what to speak
+        let textToSpeak = sentenceText;
+        if (!textToSpeak || textToSpeak === ' ' || textToSpeak === '&nbsp;') {
+          textToSpeak = analysisTxt;
+        }
+        
+        if (!textToSpeak || textToSpeak === '' || textToSpeak === 'Capture a frame to analyze visible sign or text and speak it aloud.') {
+          alert('Nothing to speak');
+          return;
+        }
+
+        const res = await fetch('/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: textToSpeak, lang: selectedLang })
+        });
+
+        const data = await res.json();
+
+        if (data.error) {
+          alert('Voice error: ' + data.error);
+        } else if (data.audio) {
+          const audio = new Audio(data.audio);
+          audio.onplay = () => console.log('Playing audio...');
+          audio.onerror = (e) => {
+            console.error('Audio playback error:', e);
+            alert('Audio playback failed');
+          };
+          audio.play().catch(e => {
+            console.error('Audio play error:', e);
+            alert('Audio playback error');
+          });
+        } else {
+          alert('No audio generated');
+        }
+
+      } catch (err) {
+        console.error("Speak error:", err);
+        alert('Speech error: ' + err.message);
+      }
+    }
+
+    async function clearAll() {
+      await fetch('/clear', { method: 'POST' });
+      sentenceDisplay.textContent = ' ';
+      actionDisplay.textContent = '-';
+      analysisText.textContent = 'Capture a frame to analyze visible sign or text and speak it aloud.';
+      probEls.forEach((el) => { el.textContent = '0.00'; });
+    }
+
+    async function captureAndDescribe() {
+      const btn = document.getElementById('btnAnalyze');
+      analysisText.textContent = 'Analyzing captured frame...';
+      btn.style.pointerEvents = 'none';
+      try {
+        const res = await fetch('/api/analyze-frame', { method: 'POST' });
+        const data = await res.json();
+        analysisText.textContent = data.analysis_result || data.error || 'No analysis result returned.';
+      } catch (err) {
+        analysisText.textContent = 'Image analysis failed.';
+      }
+      btn.style.pointerEvents = 'auto';
+    }
+
+    pollState();
+    setInterval(pollState, 150);
+  </script>
+</body>
+
+</html>

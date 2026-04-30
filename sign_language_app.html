@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Language To Text Conversion</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a40;
+    --accent: #00e5ff;
+    --accent2: #7c4dff;
+    --green: #00e676;
+    --text: #e8e8f0;
+    --text-muted: #6b6b8a;
+    --danger: #ff4757;
+    --font: 'Share Tech Mono', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .scanline {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.015) 2px, rgba(0,229,255,0.015) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+
+  header h1 {
+    font-size: 16px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--accent);
+  }
+
+  .status-pill {
+    margin-left: auto;
+    padding: 4px 12px; border-radius: 20px; font-size: 11px;
+    letter-spacing: 1px; text-transform: uppercase;
+    background: rgba(0,230,118,0.1); color: var(--green);
+    border: 1px solid rgba(0,230,118,0.3);
+  }
+
+  .status-pill.loading { background: rgba(255,193,7,0.1); color: #ffc107; border-color: rgba(255,193,7,0.3); }
+  .status-pill.error { background: rgba(255,71,87,0.1); color: var(--danger); border-color: rgba(255,71,87,0.3); }
+
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .panel-header::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); display: inline-block;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  #videoCanvas {
+    width: 100%; aspect-ratio: 4/3;
+    display: block; background: #000;
+    transform: scaleX(-1);
+  }
+
+  #skeletonCanvas {
+    width: 100%; aspect-ratio: 1;
+    display: block; background: #000;
+    border-radius: 8px;
+  }
+
+  .right-col { display: flex; flex-direction: column; gap: 16px; }
+
+  .char-display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+
+  .char-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 8px;
+  }
+
+  .char-value {
+    font-size: 72px; font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,229,255,0.5);
+    min-height: 90px;
+    line-height: 1;
+    font-family: 'Courier Prime', monospace;
+    transition: all 0.15s;
+  }
+
+  .output-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .output-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text-muted); margin-bottom: 10px;
+  }
+
+  .sentence-text {
+    font-size: 20px; font-family: 'Courier Prime', monospace;
+    color: var(--text); min-height: 56px;
+    padding: 10px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    word-break: break-word; line-height: 1.4;
+    white-space: pre-wrap;
+  }
+
+  .cursor-blink::after {
+    content: '|'; animation: blink 1s step-end infinite;
+    color: var(--accent);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .suggestions-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+
+  .suggestions-label {
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--danger); margin-bottom: 10px;
+  }
+
+  .suggestion-btns {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+
+  .suggestion-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font); font-size: 13px;
+    padding: 8px 12px; border-radius: 8px; cursor: pointer;
+    text-align: left; transition: all 0.15s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    min-height: 36px;
+  }
+
+  .suggestion-btn:hover {
+    border-color: var(--accent); color: var(--accent);
+    background: rgba(0,229,255,0.05);
+  }
+
+  .controls {
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+
+  .btn {
+    flex: 1; min-width: 80px;
+    padding: 10px 16px; border-radius: 8px;
+    font-family: var(--font); font-size: 12px;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all 0.15s;
+    border: 1px solid;
+  }
+
+  .btn-speak {
+    background: rgba(0,229,255,0.1); color: var(--accent);
+    border-color: rgba(0,229,255,0.4);
+  }
+  .btn-speak:hover { background: rgba(0,229,255,0.2); }
+
+  .btn-clear {
+    background: rgba(255,71,87,0.1); color: var(--danger);
+    border-color: rgba(255,71,87,0.4);
+  }
+  .btn-clear:hover { background: rgba(255,71,87,0.2); }
+
+  .model-notice {
+    background: rgba(124,77,255,0.08);
+    border: 1px solid rgba(124,77,255,0.3);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 12px; line-height: 1.6;
+    color: #b0a0ff;
+  }
+
+  .model-notice strong { color: var(--accent2); }
+
+  .model-notice a { color: var(--accent); }
+
+  .model-upload-row {
+    margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+
+  .upload-btn {
+    background: rgba(124,77,255,0.15); color: #b0a0ff;
+    border: 1px dashed rgba(124,77,255,0.5);
+    padding: 6px 14px; border-radius: 8px;
+    font-family: var(--font); font-size: 12px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .upload-btn:hover { background: rgba(124,77,255,0.25); }
+  #modelFile { display: none; }
+
+  .debug-log {
+    font-size: 10px; color: var(--text-muted);
+    max-height: 60px; overflow-y: auto;
+    padding: 4px 8px; background: var(--surface2);
+    border-radius: 6px; margin-top: 8px;
+    border: 1px solid var(--border);
+  }
+
+  #gestureRulesMode {
+    font-size: 11px; color: var(--green); margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  @media (max-width: 900px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<header>
+  <div class="logo-icon">✋</div>
+  <h1>Sign Language → Text</h1>
+  <div class="status-pill loading" id="statusPill">Initializing</div>
+</header>
+
+<div class="main-grid">
+  <div>
+    <div class="panel">
+      <div class="panel-header">Live Camera Feed</div>
+      <canvas id="videoCanvas"></canvas>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div class="panel">
+        <div class="panel-header">Hand Skeleton</div>
+        <canvas id="skeletonCanvas" width="400" height="400"></canvas>
+      </div>
+      <div class="char-display">
+        <div class="char-label">Current Symbol</div>
+        <div class="char-value" id="charDisplay">–</div>
+      </div>
+    </div>
+
+    <div class="output-area">
+      <div class="output-label">Sentence</div>
+      <div class="sentence-text cursor-blink" id="sentenceDisplay">&nbsp;</div>
+    </div>
+
+    <div class="suggestions-area">
+      <div class="suggestions-label">⚡ Suggestions</div>
+      <div class="suggestion-btns">
+        <button class="suggestion-btn" id="b1" onclick="applySuggestion(0)">&nbsp;</button>
+        <button class="suggestion-btn" id="b2" onclick="applySuggestion(1)">&nbsp;</button>
+        <button class="suggestion-btn" id="b3" onclick="applySuggestion(2)">&nbsp;</button>
+        <button class="suggestion-btn" id="b4" onclick="applySuggestion(3)">&nbsp;</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-speak" onclick="speakText()">🔊 Speak</button>
+      <button class="btn btn-clear" onclick="clearAll()">✕ Clear</button>
+    </div>
+
+    <div class="model-notice">
+      <strong>CNN Model Required</strong><br>
+      Upload your <code>cnn8grps_rad1_model.h5</code> converted to TF.js format, or the app runs in
+      <strong>geometry-only mode</strong> (landmark rules only — no CNN group prediction).<br>
+      <div class="model-upload-row">
+        <button class="upload-btn" onclick="document.getElementById('modelFile').click()">📂 Load model.json</button>
+        <input type="file" id="modelFile" accept=".json" onchange="loadTFJSModel(this)">
+        <span id="modelStatus" style="font-size:11px; color:var(--text-muted)">No model loaded</span>
+      </div>
+      <div id="gestureRulesMode">▶ Running in geometry-only mode</div>
+      <div class="debug-log" id="debugLog">Waiting for camera...</div>
+    </div>
+  </div>
+</div>
+
+<video id="inputVideo" style="display:none" playsinline></video>
+
+<script>
+const videoCanvas = document.getElementById('videoCanvas');
+const videoCtx = videoCanvas.getContext('2d');
+const skelCanvas = document.getElementById('skeletonCanvas');
+const skelCtx = skelCanvas.getContext('2d');
+const charDisplay = document.getElementById('charDisplay');
+const sentenceDisplay = document.getElementById('sentenceDisplay');
+const statusPill = document.getElementById('statusPill');
+const debugLog = document.getElementById('debugLog');
+
+let tfModel = null;
+let str = " ";
+let word = " ";
+let currentSymbol = "–";
+let prevChar = "";
+let count = -1;
+let tenPrevChar = Array(10).fill(" ");
+let words = [" ", " ", " ", " "];
+
+let pts = [];
+
+function log(msg) {
+  debugLog.textContent = msg;
+}
+
+function dist(a, b) {
+  return Math.sqrt((a[0]-b[0])**2 + (a[1]-b[1])**2);
+}
+
+function predict(landmarks) {
+  if (!landmarks || landmarks.length === 0) return;
+  pts = landmarks.map(lm => [lm.x * 400, lm.y * 400]);
+
+  let ch1 = 0, ch2 = 0;
+
+  if (tfModel) {
+    log("CNN model active – geometry rules applied");
+  } else {
+    ch1 = geometryOnlyPredict(pts);
+    processChar(ch1);
+    return;
+  }
+}
+
+function geometryOnlyPredict(pts) {
+  const f6up = pts[6][1] < pts[8][1];
+  const f10up = pts[10][1] < pts[12][1];
+  const f14up = pts[14][1] < pts[16][1];
+  const f18up = pts[18][1] < pts[20][1];
+  const f6dn = !f6up, f10dn = !f10up, f14dn = !f14up, f18dn = !f18up;
+
+  const thumbRight = pts[4][0] > pts[0][0];
+
+  if (pts[0][0] > pts[8][0] && pts[0][0] > pts[12][0] && pts[0][0] > pts[16][0] && pts[0][0] > pts[20][0]
+    && pts[4][1] < pts[8][1] && pts[4][1] < pts[12][1] && pts[4][1] < pts[16][1] && pts[4][1] < pts[20][1]
+    && pts[4][1] < pts[6][1] && pts[4][1] < pts[10][1] && pts[4][1] < pts[14][1] && pts[4][1] < pts[18][1]) {
+    return 'Backspace';
+  }
+
+  if (f6dn && f10dn && f14dn && f18dn) {
+    if (pts[4][0] < pts[6][0] && pts[4][0] < pts[10][0] && pts[4][0] < pts[14][0] && pts[4][0] < pts[18][0]) return 'A';
+    if (pts[4][1] > pts[8][1] && pts[4][1] > pts[12][1] && pts[4][1] > pts[16][1] && pts[4][1] > pts[20][1]) return 'E';
+    if (pts[4][0] > pts[6][0] && pts[4][0] > pts[10][0] && pts[4][0] > pts[14][0] && pts[4][1] < pts[18][1]) return 'M';
+    if (pts[4][0] > pts[6][0] && pts[4][0] > pts[10][0] && pts[4][1] < pts[18][1] && pts[4][1] < pts[14][1]) return 'N';
+    if (pts[4][0] > pts[6][0] && pts[4][0] < pts[10][0] && pts[4][0] < pts[14][0] && pts[4][0] < pts[18][0] && pts[4][1] < pts[14][1] && pts[4][1] < pts[18][1]) return 'T';
+    return 'S';
+  }
+
+  if (f6dn && f10dn && f14dn && f18up) {
+    if (pts[4][0] < pts[5][0]) return 'Y';
+    return 'J';
+  }
+
+  if (f6up && f10dn && f14dn && f18dn) {
+    if (pts[4][0] > pts[12][0] && pts[4][0] > pts[16][0] && pts[4][0] > pts[20][0]) {
+      if (pts[8][1] < pts[5][1]) return 'Z';
+      return 'Q';
+    }
+    if (pts[4][1] > pts[14][1]) return 'D';
+    return 'F';
+  }
+
+  if (f6dn && f10dn && f14dn && f18dn) return 'B';
+  if (f6up && f10up && f14dn && f18dn) {
+    const d812 = dist(pts[8], pts[12]);
+    const d610 = dist(pts[6], pts[10]);
+    if (pts[8][0] > pts[12][0]) return 'R';
+    if ((d812 - d610) < 8 && pts[4][1] < pts[9][1]) return 'U';
+    if ((d812 - d610) >= 8 && pts[4][1] > pts[9][1]) return 'V';
+    if (pts[4][1] < pts[9][1]) return 'K';
+    return 'U';
+  }
+
+  if (f6up && f10up && f14up && f18dn) return 'I';
+  if (f6dn && f10up && f14up && f18up) {
+    if (dist(pts[12], pts[4]) > 42) return 'C';
+    return 'O';
+  }
+
+  if (f6dn && f10dn && f14up && f18up) {
+    if (pts[4][1] < pts[9][1]) return 'K';
+    return 'W';
+  }
+
+  if (f6up && f10up && f14up && f18up) {
+    const d812 = dist(pts[8], pts[12]);
+    if (d812 > 72) return 'G';
+    if (dist(pts[4], pts[11]) < 60) return 'X';
+    return 'H';
+  }
+
+  if (f6up && f10dn && f14dn && f18up) return 'I';
+  if (f6dn && f10up && f14dn && f18dn) return 'X';
+
+  if (pts[4][0] < pts[0][0]) {
+    if (dist(pts[8], pts[4]) > 42) return 'Y';
+    return 'J';
+  }
+
+  if (dist(pts[4], pts[11]) < 50) return 'L';
+  return 'X';
+}
+
+function processChar(ch1) {
+  let finalCh = ch1;
+
+  if (finalCh === " " && prevChar !== " ") {
+    str = str + " ";
+  }
+
+  if (finalCh === "next" && prevChar !== "next") {
+    const prev2 = tenPrevChar[((count - 2) % 10 + 10) % 10];
+    if (prev2 !== "next") {
+      if (prev2 === "Backspace") {
+        str = str.slice(0, -1);
+      } else if (prev2 !== "Backspace") {
+        str = str + prev2;
+      }
+    } else {
+      const prev0 = tenPrevChar[count % 10];
+      if (prev0 !== "Backspace") str = str + prev0;
+    }
+  }
+
+  if (finalCh === "Backspace" && prevChar !== "Backspace") {
+    if (str.length > 1) str = str.slice(0, -1);
+  }
+
+  prevChar = finalCh;
+  currentSymbol = finalCh === "next" ? "→" : finalCh === "Backspace" ? "⌫" : (finalCh || "–");
+  count += 1;
+  tenPrevChar[((count % 10) + 10) % 10] = finalCh;
+
+  charDisplay.textContent = currentSymbol === " " ? "SPC" : currentSymbol;
+
+  updateSentence();
+  updateSuggestions();
+}
+
+function updateSentence() {
+  sentenceDisplay.textContent = str || " ";
+}
+
+async function updateSuggestions() {
+  if (!str.trim()) {
+    words = [" ", " ", " ", " "];
+    updateSuggBtns();
+    return;
+  }
+  const st = str.lastIndexOf(" ");
+  const currentWord = str.slice(st + 1);
+  word = currentWord;
+  if (!currentWord.trim()) {
+    words = [" ", " ", " ", " "];
+    updateSuggBtns();
+    return;
+  }
+  try {
+    const r = await fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(currentWord)}*&max=4`);
+    const data = await r.json();
+    words = [" ", " ", " ", " "];
+    data.slice(0, 4).forEach((w, i) => { words[i] = w.word; });
+  } catch {
+    words = [" ", " ", " ", " "];
+  }
+  updateSuggBtns();
+}
+
+function updateSuggBtns() {
+  ['b1','b2','b3','b4'].forEach((id, i) => {
+    document.getElementById(id).textContent = words[i] || " ";
+  });
+}
+
+function applySuggestion(idx) {
+  const w = words[idx];
+  if (!w || !w.trim()) return;
+  const st = str.lastIndexOf(" ");
+  str = str.slice(0, st + 1) + w.toUpperCase();
+  updateSentence();
+  updateSuggestions();
+}
+
+function speakText() {
+  if (!str.trim()) return;
+  const utterance = new SpeechSynthesisUtterance(str.trim());
+  utterance.rate = 0.85;
+  speechSynthesis.speak(utterance);
+}
+
+function clearAll() {
+  str = " "; word = " ";
+  words = [" ", " ", " ", " "];
+  updateSentence();
+  updateSuggBtns();
+}
+
+async function loadTFJSModel(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('modelStatus').textContent = 'Loading...';
+  try {
+    const url = URL.createObjectURL(file);
+    tfModel = await tf.loadLayersModel(url);
+    document.getElementById('modelStatus').textContent = '✓ Model loaded';
+    document.getElementById('gestureRulesMode').textContent = '▶ Running with CNN model';
+    document.getElementById('gestureRulesMode').style.color = 'var(--accent)';
+    log('CNN model loaded successfully');
+  } catch (e) {
+    document.getElementById('modelStatus').textContent = '✗ Load failed: ' + e.message;
+    log('Model load error: ' + e.message);
+  }
+}
+
+function drawSkeleton(landmarks, w, h) {
+  skelCtx.clearRect(0, 0, 400, 400);
+  skelCtx.fillStyle = '#000';
+  skelCtx.fillRect(0, 0, 400, 400);
+
+  if (!landmarks || landmarks.length === 0) return;
+
+  const scaledPts = landmarks.map(lm => [lm.x * 400, lm.y * 400]);
+
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],
+    [0,5],[5,6],[6,7],[7,8],
+    [5,9],[9,10],[10,11],[11,12],
+    [9,13],[13,14],[14,15],[15,16],
+    [13,17],[17,18],[18,19],[19,20],
+    [0,17]
+  ];
+
+  skelCtx.strokeStyle = '#00e676';
+  skelCtx.lineWidth = 2.5;
+  connections.forEach(([a, b]) => {
+    if (scaledPts[a] && scaledPts[b]) {
+      skelCtx.beginPath();
+      skelCtx.moveTo(scaledPts[a][0], scaledPts[a][1]);
+      skelCtx.lineTo(scaledPts[b][0], scaledPts[b][1]);
+      skelCtx.stroke();
+    }
+  });
+
+  scaledPts.forEach((p, i) => {
+    skelCtx.beginPath();
+    skelCtx.arc(p[0], p[1], i === 0 ? 5 : 3, 0, Math.PI * 2);
+    skelCtx.fillStyle = i === 0 ? '#ff4757' : '#00e5ff';
+    skelCtx.shadowColor = i === 0 ? '#ff4757' : '#00e5ff';
+    skelCtx.shadowBlur = 6;
+    skelCtx.fill();
+    skelCtx.shadowBlur = 0;
+  });
+}
+
+let frameCount = 0;
+let lastChar = '';
+let stableCount = 0;
+const STABLE_FRAMES = 8;
+
+async function initCamera() {
+  const video = document.getElementById('inputVideo');
+
+  const hands = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+
+  hands.setOptions({
+    maxNumHands: 1,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.5
+  });
+
+  hands.onResults(results => {
+    videoCanvas.width = results.image.width || 640;
+    videoCanvas.height = results.image.height || 480;
+
+    videoCtx.save();
+    videoCtx.scale(-1, 1);
+    videoCtx.translate(-videoCanvas.width, 0);
+    videoCtx.drawImage(results.image, 0, 0, videoCanvas.width, videoCanvas.height);
+    videoCtx.restore();
+
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      const landmarks = results.multiHandLandmarks[0];
+
+      videoCtx.save();
+      videoCtx.scale(-1, 1);
+      videoCtx.translate(-videoCanvas.width, 0);
+      drawConnectors(videoCtx, landmarks, HAND_CONNECTIONS, { color: '#00e5ff', lineWidth: 2 });
+      drawLandmarks(videoCtx, landmarks, { color: '#ff4757', lineWidth: 1, radius: 4 });
+      videoCtx.restore();
+
+      drawSkeleton(landmarks, 400, 400);
+
+      const detectedChar = geometryOnlyPredict(landmarks.map(lm => [lm.x * 400, lm.y * 400]));
+
+      if (detectedChar === lastChar) {
+        stableCount++;
+      } else {
+        stableCount = 0;
+        lastChar = detectedChar;
+      }
+
+      charDisplay.textContent = detectedChar === " " ? "SPC" : (detectedChar || "–");
+
+      if (stableCount === STABLE_FRAMES) {
+        processChar(detectedChar);
+        stableCount = 0;
+      }
+
+      log(`Detected: ${detectedChar} | Stable: ${stableCount}/${STABLE_FRAMES} | Sentence: "${str.trim().slice(-20)}"`);
+    } else {
+      drawSkeleton([], 0, 0);
+      charDisplay.textContent = '–';
+      log('No hand detected');
+    }
+  });
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 480, facingMode: 'user' }
+    });
+    video.srcObject = stream;
+    video.play();
+
+    const camera = new Camera(video, {
+      onFrame: async () => {
+        await hands.send({ image: video });
+      },
+      width: 640,
+      height: 480
+    });
+    camera.start();
+
+    statusPill.textContent = 'Live';
+    statusPill.className = 'status-pill';
+    log('Camera active — show your hand!');
+  } catch (err) {
+    statusPill.textContent = 'Camera Error';
+    statusPill.className = 'status-pill error';
+    log('Camera error: ' + err.message);
+  }
+}
+
+window.addEventListener('load', () => {
+  statusPill.textContent = 'Loading MediaPipe...';
+  statusPill.className = 'status-pill loading';
+  log('Loading MediaPipe Hands...');
+  setTimeout(initCamera, 500);
+});
+</script>
+</body>
+</html>
