@@ -1,0 +1,13 @@
+Flask==3.0.0
+numpy==1.26.4
+opencv-python-headless==4.8.1.78
+python-dotenv==1.0.0
+requests==2.31.0
+keras==2.15.0
+tensorflow==2.15.0
+cvzone==1.6.1
+pyenchant==3.2.2
+googletrans==4.0.0-rc1
+gTTS==2.5.0
+mediapipe==0.10.9
+pyttsx3==2.90
