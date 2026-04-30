@@ -816,7 +816,7 @@ def predict(test_image):
         ed = len(str_output)
         w = str_output[st + 1:ed]
         word = w
-        if len(w.strip()) != 0:
+        if len(w.strip()) != 0 and ddd is not None:
             ddd.check(w)
             suggestions = ddd.suggest(w)
             lenn = len(suggestions)
@@ -1365,6 +1365,112 @@ def analyze_frame():
         analysis_status = "error"
         analysis_result = f"Image analysis failed: {exc}"
         return jsonify({'ok': False, 'error': analysis_result}), 500
+
+
+@app.route('/api/process-frame', methods=['POST'])
+@login_required
+def process_browser_frame():
+    """Receive a base64 frame from the browser webcam, run hand detection + CNN prediction."""
+    global latest_camera_frame, latest_skeleton_frame, pts, ccc
+    global str_output, word, word1, word2, word3, word4
+    global current_symbol, prev_char, count, ten_prev_char
+
+    data = request.get_json()
+    if not data or 'frame' not in data:
+        return jsonify({'ok': False, 'error': 'No frame data'}), 400
+
+    try:
+        # Decode base64 frame from browser
+        frame_data = data['frame']
+        # Strip data URL prefix if present
+        if ',' in frame_data:
+            frame_data = frame_data.split(',')[1]
+
+        img_bytes = base64.b64decode(frame_data)
+        nparr = np.frombuffer(img_bytes, np.uint8)
+        cv2image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if cv2image is None:
+            return jsonify({'ok': False, 'error': 'Failed to decode frame'}), 400
+
+        cv2image = cv2.flip(cv2image, 1)
+
+        with frame_lock:
+            latest_camera_frame = cv2image.copy()
+
+        skeleton_b64 = None
+
+        # Run hand detection (same as video_loop alphabet mode)
+        hands = normalize_hands_result(hd.findHands(cv2image, draw=False, flipType=True))
+        cv2image_copy = np.array(cv2image)
+
+        if hands:
+            hand = hands[0]
+            x, y, w_box, h_box = hand['bbox']
+            y1 = max(0, y - offset)
+            y2 = min(cv2image_copy.shape[0], y + h_box + offset)
+            x1 = max(0, x - offset)
+            x2 = min(cv2image_copy.shape[1], x + w_box + offset)
+            image = cv2image_copy[y1:y2, x1:x2]
+            white = np.ones((400, 400, 3), dtype=np.uint8) * 255
+
+            if image is not None and image.size > 0:
+                handz = normalize_hands_result(hd2.findHands(image, draw=False, flipType=True))
+                ccc += 1
+                if handz:
+                    hand2 = handz[0]
+                    pts = hand2['lmList']
+                    os_x = ((400 - w_box) // 2) - 15
+                    os_y = ((400 - h_box) // 2) - 15
+
+                    for t in range(0, 4):
+                        cv2.line(white, (pts[t][0]+os_x, pts[t][1]+os_y), (pts[t+1][0]+os_x, pts[t+1][1]+os_y), (0,255,0), 3)
+                    for t in range(5, 8):
+                        cv2.line(white, (pts[t][0]+os_x, pts[t][1]+os_y), (pts[t+1][0]+os_x, pts[t+1][1]+os_y), (0,255,0), 3)
+                    for t in range(9, 12):
+                        cv2.line(white, (pts[t][0]+os_x, pts[t][1]+os_y), (pts[t+1][0]+os_x, pts[t+1][1]+os_y), (0,255,0), 3)
+                    for t in range(13, 16):
+                        cv2.line(white, (pts[t][0]+os_x, pts[t][1]+os_y), (pts[t+1][0]+os_x, pts[t+1][1]+os_y), (0,255,0), 3)
+                    for t in range(17, 20):
+                        cv2.line(white, (pts[t][0]+os_x, pts[t][1]+os_y), (pts[t+1][0]+os_x, pts[t+1][1]+os_y), (0,255,0), 3)
+                    cv2.line(white, (pts[5][0]+os_x, pts[5][1]+os_y), (pts[9][0]+os_x, pts[9][1]+os_y), (0,255,0), 3)
+                    cv2.line(white, (pts[9][0]+os_x, pts[9][1]+os_y), (pts[13][0]+os_x, pts[13][1]+os_y), (0,255,0), 3)
+                    cv2.line(white, (pts[13][0]+os_x, pts[13][1]+os_y), (pts[17][0]+os_x, pts[17][1]+os_y), (0,255,0), 3)
+                    cv2.line(white, (pts[0][0]+os_x, pts[0][1]+os_y), (pts[5][0]+os_x, pts[5][1]+os_y), (0,255,0), 3)
+                    cv2.line(white, (pts[0][0]+os_x, pts[0][1]+os_y), (pts[17][0]+os_x, pts[17][1]+os_y), (0,255,0), 3)
+
+                    for i in range(21):
+                        cv2.circle(white, (pts[i][0]+os_x, pts[i][1]+os_y), 2, (0,0,255), 1)
+
+                    predict(white)
+
+                with frame_lock:
+                    latest_skeleton_frame = white.copy()
+
+                # Encode skeleton as base64 to send back to browser
+                _, skel_jpg = cv2.imencode('.jpg', white, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                skeleton_b64 = base64.b64encode(skel_jpg.tobytes()).decode('utf-8')
+        else:
+            white = np.ones((400, 400, 3), dtype=np.uint8) * 255
+            with frame_lock:
+                latest_skeleton_frame = white.copy()
+            _, skel_jpg = cv2.imencode('.jpg', white, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            skeleton_b64 = base64.b64encode(skel_jpg.tobytes()).decode('utf-8')
+
+        return jsonify({
+            'ok': True,
+            'character': str(current_symbol) if current_symbol else '-',
+            'sentence': str_output,
+            'word1': word1,
+            'word2': word2,
+            'word3': word3,
+            'word4': word4,
+            'skeleton': skeleton_b64
+        })
+
+    except Exception as exc:
+        print("process-frame error:", traceback.format_exc())
+        return jsonify({'ok': False, 'error': str(exc)}), 500
 
 
 

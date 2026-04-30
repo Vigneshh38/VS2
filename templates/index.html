@@ -1127,7 +1127,8 @@
           </div>
         </div>
         <div style="position: relative;">
-          <img id="cameraFeed" class="camera-feed" src="/video_feed" alt="Camera Feed" style="display: none;">
+          <video id="cameraVideo" class="camera-feed" autoplay playsinline muted style="display: none;"></video>
+          <canvas id="cameraCanvas" style="display: none;"></canvas>
           <div id="cameraPlaceholder" class="camera-feed"
             style="display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 14px;">
             Camera off — click 📷 Camera On to start
@@ -1139,7 +1140,7 @@
           </div>
         </div>
         <div class="camera-overlay">
-          <span class="camera-tag">WEBCAM • MIRRORED</span>
+          <span class="camera-tag">BROWSER WEBCAM</span>
           <span class="camera-tag" id="fpsTag">CNN MODEL ACTIVE</span>
         </div>
       </div>
@@ -1155,7 +1156,7 @@
             <span class="indicator green"></span>
             Hand Skeleton
           </div>
-          <img id="skeletonFeed" class="skeleton-feed" src="/skeleton_feed" alt="Hand Skeleton" style="display: none;">
+          <img id="skeletonFeed" class="skeleton-feed" alt="Hand Skeleton" style="display: none;">
           <div id="skeletonPlaceholder" class="skeleton-feed"
             style="display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 12px;">
             <span style="opacity: 0.5;">Waiting for camera...</span>
@@ -1253,8 +1254,11 @@
           });
         });
 
-        // ─── State ───
         let cameraActive = false;
+        let browserStream = null;
+        let frameInterval = null;
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
         const charDisplay = document.getElementById('charDisplay');
         const sentenceDisplay = document.getElementById('sentenceDisplay');
         const sug1 = document.getElementById('sug1');
@@ -1262,7 +1266,6 @@
         const sug3 = document.getElementById('sug3');
         const sug4 = document.getElementById('sug4');
         const analysisText = document.getElementById('analysisText');
-        const cameraFeed = document.getElementById('cameraFeed');
         const cameraPlaceholder = document.getElementById('cameraPlaceholder');
         const skeletonFeed = document.getElementById('skeletonFeed');
         const skeletonPlaceholder = document.getElementById('skeletonPlaceholder');
@@ -1270,25 +1273,32 @@
 
         let prevCharValue = '';
         let suggestions = [' ', ' ', ' ', ' '];
-        let pollInterval = null;
+        let sending = false;
 
-        // ─── Camera Toggle ───
-        function toggleCamera() {
+        // ─── Camera Toggle (Browser getUserMedia) ───
+        async function toggleCamera() {
           cameraActive = !cameraActive;
           if (cameraActive) {
-            cameraFeed.style.display = 'block';
-            cameraPlaceholder.style.display = 'none';
-            skeletonFeed.style.display = 'block';
-            skeletonPlaceholder.style.display = 'none';
-            cameraOnBtn.innerHTML = '<span>⏹</span> Camera Off';
-            cameraOnBtn.style.background = 'linear-gradient(135deg, var(--red), #ef4444)';
-            // Start polling when camera is on
-            if (!pollInterval) {
-              pollInterval = setInterval(pollState, 150);
+            try {
+              browserStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+              cameraVideo.srcObject = browserStream;
+              cameraVideo.style.display = 'block';
+              cameraPlaceholder.style.display = 'none';
+              skeletonFeed.style.display = 'block';
+              skeletonPlaceholder.style.display = 'none';
+              cameraOnBtn.innerHTML = '<span>⏹</span> Camera Off';
+              cameraOnBtn.style.background = 'linear-gradient(135deg, var(--red), #ef4444)';
+              // Start sending frames to server
+              frameInterval = setInterval(sendFrameToServer, 200);
+              showToast('Camera started (browser)', 'success');
+            } catch (err) {
+              showToast('Camera access denied: ' + err.message, 'info');
+              cameraActive = false;
             }
-            showToast('Camera started', 'success');
           } else {
-            cameraFeed.style.display = 'none';
+            if (frameInterval) { clearInterval(frameInterval); frameInterval = null; }
+            if (browserStream) { browserStream.getTracks().forEach(t => t.stop()); browserStream = null; }
+            cameraVideo.style.display = 'none';
             cameraPlaceholder.style.display = 'flex';
             skeletonFeed.style.display = 'none';
             skeletonPlaceholder.style.display = 'flex';
@@ -1298,43 +1308,62 @@
           }
         }
 
-        // ─── State polling ───
+        // ─── Send frame to server for processing ───
+        async function sendFrameToServer() {
+          if (!cameraActive || sending) return;
+          sending = true;
+          try {
+            cameraCanvas.width = cameraVideo.videoWidth || 640;
+            cameraCanvas.height = cameraVideo.videoHeight || 480;
+            const ctx = cameraCanvas.getContext('2d');
+            ctx.drawImage(cameraVideo, 0, 0);
+            const frameData = cameraCanvas.toDataURL('image/jpeg', 0.7);
+
+            const res = await fetch('/api/process-frame', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ frame: frameData })
+            });
+            const data = await res.json();
+            if (data.ok) {
+              // Update character
+              let ch = data.character || '–';
+              let displayCh = ch;
+              if (ch === 'next') displayCh = '→';
+              else if (ch === 'Backspace') displayCh = '⌫';
+              else if (ch === ' ') displayCh = '␣';
+              if (displayCh !== prevCharValue) {
+                charDisplay.textContent = displayCh;
+                charDisplay.classList.remove('flash');
+                void charDisplay.offsetWidth;
+                charDisplay.classList.add('flash');
+                prevCharValue = displayCh;
+              }
+              // Update sentence
+              sentenceDisplay.textContent = data.sentence || ' ';
+              // Update suggestions
+              suggestions = [data.word1 || ' ', data.word2 || ' ', data.word3 || ' ', data.word4 || ' '];
+              sug1.childNodes[1].textContent = suggestions[0];
+              sug2.childNodes[1].textContent = suggestions[1];
+              sug3.childNodes[1].textContent = suggestions[2];
+              sug4.childNodes[1].textContent = suggestions[3];
+              // Update skeleton image
+              if (data.skeleton) {
+                skeletonFeed.src = 'data:image/jpeg;base64,' + data.skeleton;
+              }
+            }
+          } catch (err) { /* silent retry */ }
+          sending = false;
+        }
+
+        // ─── State polling (for analysis text only) ───
         async function pollState() {
           if (!cameraActive) return;
           try {
             const res = await fetch('/state');
             const data = await res.json();
-
-            // Update character display
-            let ch = data.character || '–';
-            let displayCh = ch;
-            if (ch === 'next') displayCh = '→';
-            else if (ch === 'Backspace') displayCh = '⌫';
-            else if (ch === ' ') displayCh = '␣';
-            else if (ch === '  ') displayCh = '␣␣';
-
-            if (displayCh !== prevCharValue) {
-              charDisplay.textContent = displayCh;
-              charDisplay.classList.remove('flash');
-              void charDisplay.offsetWidth; // trigger reflow
-              charDisplay.classList.add('flash');
-              prevCharValue = displayCh;
-            }
-
-            // Update sentence
-            sentenceDisplay.textContent = data.sentence || ' ';
-
-            // Update suggestions
-            suggestions = [data.word1 || ' ', data.word2 || ' ', data.word3 || ' ', data.word4 || ' '];
-            sug1.childNodes[1].textContent = suggestions[0];
-            sug2.childNodes[1].textContent = suggestions[1];
-            sug3.childNodes[1].textContent = suggestions[2];
-            sug4.childNodes[1].textContent = suggestions[3];
             analysisText.textContent = data.analysis_result || 'Capture a frame to analyze visible sign or text and speak it aloud.';
-
-          } catch (err) {
-            // Silent retry
-          }
+          } catch (err) { }
         }
 
         // ─── Suggestion click ───
