@@ -24,7 +24,13 @@ from flask import Flask, render_template, Response, jsonify, request, redirect, 
 from keras.models import load_model
 from cvzone.HandTrackingModule import HandDetector
 from string import ascii_uppercase
-import enchant
+try:
+    import enchant
+    ddd = enchant.Dict("en-US")
+except ImportError:
+    enchant = None
+    ddd = None
+    print("WARNING: enchant not available, spell-check disabled")
 from googletrans import Translator
 from gtts import gTTS
 
@@ -52,7 +58,7 @@ ACTION_THRESHOLD = 0.5
 # ---------------------------------------------------------------------------
 os.environ["THEANO_FLAGS"] = "device=cuda, assert_no_cpu_op=True"
 
-ddd = enchant.Dict("en-US")
+# ddd already initialized above in the try/except block
 hd = HandDetector(maxHands=1)
 hd2 = HandDetector(maxHands=1)
 mp_holistic = mp.solutions.holistic
@@ -1430,5 +1436,6 @@ def camera_rotate():
 if __name__ == '__main__':
     video_thread = threading.Thread(target=video_loop, daemon=True)
     video_thread.start()
-    print("\n  * Sign Language App running at  http://127.0.0.1:5000\n")
-    app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"\n  * Sign Language App running at  http://0.0.0.0:{port}\n")
+    app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
