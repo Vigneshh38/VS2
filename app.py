@@ -53,10 +53,16 @@ ACTION_SEQUENCE_LENGTH = 30
 ACTION_STABILITY_WINDOW = 10
 ACTION_THRESHOLD = 0.5
 
+# Detect if running on cloud (Render sets RENDER=true, or check for PORT env)
+CLOUD_MODE = bool(os.environ.get('RENDER') or os.environ.get('IS_CLOUD'))
+if CLOUD_MODE:
+    print("☁️  Running in CLOUD MODE — browser webcam will be used")
+
 # ---------------------------------------------------------------------------
 # Globals (mirrors final_pred.py Application class attributes)
 # ---------------------------------------------------------------------------
 os.environ["THEANO_FLAGS"] = "device=cuda, assert_no_cpu_op=True"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Suppress TF warnings
 
 # ddd already initialized above in the try/except block
 hd = HandDetector(maxHands=1)
@@ -71,7 +77,12 @@ current_camera_idx = 0
 # Load model
 model = load_model('cnn8grps_rad1_model.h5')
 print("Loaded model from disk")
-action_model = load_model(ACTION_MODEL_PATH) if os.path.exists(ACTION_MODEL_PATH) else None
+action_model = None
+if not CLOUD_MODE and os.path.exists(ACTION_MODEL_PATH):
+    action_model = load_model(ACTION_MODEL_PATH)
+    print("Loaded action model")
+else:
+    print("Skipping action model (cloud mode or not found)")
 action_labels = np.array(['hello', 'thanks', 'iloveyou'])
 action_colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245)]
 
@@ -146,18 +157,25 @@ def discover_cameras(max_index=5):
             cap.release()
     return available
 
-available_cameras = discover_cameras()
-print(f"Available cameras: {available_cameras}")
+available_cameras = []
+if not CLOUD_MODE:
+    available_cameras = discover_cameras()
+    print(f"Available cameras: {available_cameras}")
+else:
+    print("☁️  Skipping camera discovery (cloud mode)")
 
 # Open first available camera
 vs = None
-if available_cameras:
-    current_camera_idx = available_cameras[0]['index']
-    print(f"Using camera index {current_camera_idx}")
+if not CLOUD_MODE:
+    if available_cameras:
+        current_camera_idx = available_cameras[0]['index']
+        print(f"Using camera index {current_camera_idx}")
+    else:
+        vs = cv2.VideoCapture(1)
+        current_camera_idx = 0
+        print("No camera detected, defaulting to index 0")
 else:
-    vs = cv2.VideoCapture(1)
-    current_camera_idx = 0
-    print("No camera detected, defaulting to index 0")
+    print("☁️  No server camera needed (browser webcam mode)")
 
 def switch_camera(new_idx):
     """Switch to a different camera index at runtime."""
@@ -1540,8 +1558,11 @@ def camera_rotate():
 # Start background video thread and run Flask
 # ---------------------------------------------------------------------------
 if __name__ == '__main__':
-    video_thread = threading.Thread(target=video_loop, daemon=True)
-    video_thread.start()
+    if not CLOUD_MODE:
+        video_thread = threading.Thread(target=video_loop, daemon=True)
+        video_thread.start()
+    else:
+        print("☁️  Skipping video_loop (browser webcam handles frames)")
     port = int(os.environ.get("PORT", 5000))
     print(f"\n  * Sign Language App running at  http://0.0.0.0:{port}\n")
     app.run(host='0.0.0.0', port=port, debug=False, threaded=True)
